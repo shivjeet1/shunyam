@@ -1,0 +1,18 @@
+#!/sbin/openrc-run
+
+name="shunyad"
+description="Shunya Secure Wipe Daemon"
+
+command="/usr/sbin/shunyad"
+command_background="yes"
+pidfile="/run/${RC_SVCNAME}.pid"
+
+depend() {
+    need localmount
+    after bootmisc
+}
+
+start_pre() {
+    checkpath -d -m 0755 /var/lib/shunya
+    checkpath -d -m 0755 /var/log/shunya
+}
