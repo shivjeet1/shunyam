@@ -1,0 +1,102 @@
+syntax = "proto3";
+
+package shunya.v1;
+
+option go_package = "shunya/proto/shunya/v1";
+
+// ---------------------------------------------------------
+// Device Service
+// ---------------------------------------------------------
+
+service DeviceService {
+  // Enumerate all attached storage devices and their capabilities.
+  rpc ListDevices(ListDevicesRequest) returns (ListDevicesResponse);
+}
+
+message ListDevicesRequest {}
+
+message ListDevicesResponse {
+  repeated Device devices = 1;
+}
+
+message Device {
+  string id = 1;
+  string class = 2; // e.g., nvme-ssd, sata-ssd
+  string model = 3;
+  string serial = 4;
+  string firmware = 5;
+  uint64 capacity_bytes = 6;
+  repeated string supported_methods = 7;
+  bool is_system_disk = 8;
+  bool is_boot_medium = 9;
+}
+
+// ---------------------------------------------------------
+// Job Service
+// ---------------------------------------------------------
+
+service JobService {
+  // Start a sanitization/wipe job on a specific device
+  rpc StartJob(StartJobRequest) returns (StartJobResponse);
+  
+  // Stream progress events of an ongoing job
+  rpc StreamEvents(StreamEventsRequest) returns (stream JobEvent);
+}
+
+message StartJobRequest {
+  string device_id = 1;
+  string serial_confirmation = 2; // Last 4 chars of serial
+  string requested_method = 3; // empty means let planner decide
+}
+
+message StartJobResponse {
+  string job_id = 1;
+}
+
+message StreamEventsRequest {
+  string job_id = 1;
+}
+
+message JobEvent {
+  string job_id = 1;
+  string step_name = 2;
+  float progress_percent = 3;
+  string status = 4; // "running", "success", "failed"
+  string message = 5;
+}
+
+// ---------------------------------------------------------
+// Recovery Service
+// ---------------------------------------------------------
+
+service RecoveryService {
+  rpc StartRecovery(StartRecoveryRequest) returns (StartRecoveryResponse);
+}
+
+message StartRecoveryRequest {
+  string source_device_id = 1;
+  string output_directory = 2;
+  string profile = 3; // "triage", "full", "residue"
+}
+
+message StartRecoveryResponse {
+  string job_id = 1;
+}
+
+// ---------------------------------------------------------
+// Certificate Service
+// ---------------------------------------------------------
+
+service CertificateService {
+  rpc GetCertificate(GetCertificateRequest) returns (GetCertificateResponse);
+}
+
+message GetCertificateRequest {
+  string job_id = 1;
+}
+
+message GetCertificateResponse {
+  string cert_json = 1; // Canonical JSON
+  bytes pdf_data = 2;
+  string qr_payload = 3;
+}

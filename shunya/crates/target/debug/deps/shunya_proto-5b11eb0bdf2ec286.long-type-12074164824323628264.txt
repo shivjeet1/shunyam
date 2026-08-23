@@ -1,0 +1,1 @@
+ProstCodec<StartRecoveryRequest, StartRecoveryResponse>

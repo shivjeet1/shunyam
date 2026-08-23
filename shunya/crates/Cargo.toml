@@ -1,0 +1,13 @@
+[workspace]
+members = [
+    "shunya-proto",
+    "shunya-device",
+    "shunya-io",
+    "shunya-ata-nvme",
+    "shunya-carve",
+    "shunya-cert",
+    "shunya-render",
+    "shunya-engine",
+    "shunya-gui"
+, "shunya-proto"]
+resolver = "2"
