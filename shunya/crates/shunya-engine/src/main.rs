@@ -1,37 +1,63 @@
-use clap::Parser;
+use clap::{Parser, Subcommand};
 use shunya_io::wiper::Wiper;
 use std::process::exit;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Args {
-    /// Device path to wipe
-    #[arg(short, long)]
-    device: String,
+    #[command(subcommand)]
+    command: Commands,
+}
 
-    /// Capacity of the device in bytes
-    #[arg(short, long)]
-    capacity: u64,
+#[derive(Subcommand, Debug)]
+enum Commands {
+    /// Overwrite a block device
+    Wipe {
+        /// Device path to wipe
+        #[arg(short, long)]
+        device: String,
+
+        /// Capacity of the device in bytes
+        #[arg(short, long)]
+        capacity: u64,
+    },
+    /// Enumerate storage devices on the system
+    ListDevices,
 }
 
 fn main() {
     let args = Args::parse();
 
-    println!("Starting wipe engine for device: {}", args.device);
-    println!("Capacity to overwrite: {} bytes", args.capacity);
+    match args.command {
+        Commands::Wipe { device, capacity } => {
+            println!("Starting wipe engine for device: {}", device);
+            println!("Capacity to overwrite: {} bytes", capacity);
 
-    // Provide a deterministic or random seed depending on the use case.
-    // For now, deterministic just for the skeleton.
-    let seed: [u8; 32] = [42; 32];
-    let mut wiper = Wiper::new(&args.device, args.capacity, seed);
+            let seed: [u8; 32] = [42; 32];
+            let mut wiper = Wiper::new(&device, capacity, seed);
 
-    match wiper.overwrite() {
-        Ok(_) => {
-            println!("Successfully overwrote {}", args.device);
+            match wiper.overwrite() {
+                Ok(_) => {
+                    println!("Successfully overwrote {}", device);
+                }
+                Err(e) => {
+                    eprintln!("Failed to wipe device: {:?}", e);
+                    exit(1);
+                }
+            }
         }
-        Err(e) => {
-            eprintln!("Failed to wipe device: {:?}", e);
-            exit(1);
+        Commands::ListDevices => {
+            match shunya_device::enumerate_devices() {
+                Ok(devices) => {
+                    for dev in devices {
+                        println!("Device: {} (Model: {}, NVMe: {})", dev.path, dev.model, dev.is_nvme);
+                    }
+                }
+                Err(e) => {
+                    eprintln!("Failed to enumerate devices: {:?}", e);
+                    exit(1);
+                }
+            }
         }
     }
 }
