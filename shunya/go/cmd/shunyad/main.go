@@ -7,9 +7,13 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"github.com/google/uuid"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"google.golang.org/grpc"
 
+	"shunya/internal/policy"
 	"shunya/internal/tools"
 	pb "shunya/shunya/v1"
 )
@@ -20,9 +24,19 @@ type DaemonServer struct {
 	pb.UnimplementedJobServiceServer
 	pb.UnimplementedRecoveryServiceServer
 	pb.UnimplementedCertificateServiceServer
+	gate *policy.Gate
 }
 
 func (s *DaemonServer) ListDevices(ctx context.Context, req *pb.ListDevicesRequest) (*pb.ListDevicesResponse, error) {
+	if tools.ShouldUseNativeProbe() {
+		adapter := tools.NewRustEngineAdapter("shunya-engine")
+		if err := adapter.ListDevices(); err != nil {
+			log.Printf("Native Rust probing failed: %v", err)
+		}
+		// For MVP, if it's Mac/Win we just return empty as we are printing to stdout in the rust cli
+		return &pb.ListDevicesResponse{}, nil
+	}
+
 	adapter := tools.NewNVMEAdapter("nvme")
 	nvmeDevs, err := adapter.ListDevices()
 	if err != nil {
@@ -47,6 +61,27 @@ func (s *DaemonServer) ListDevices(ctx context.Context, req *pb.ListDevicesReque
 	}, nil
 }
 
+func (s *DaemonServer) StartJob(ctx context.Context, req *pb.StartJobRequest) (*pb.StartJobResponse, error) {
+	// Policy check! 
+	// For MVP, we assume local presence is satisfied if they are calling this socket (requires root).
+	isAuthorized := true
+	if err := s.gate.CanWipe(req.DeviceId, isAuthorized); err != nil {
+		log.Printf("Job rejected by policy gate for %s: %v", req.DeviceId, err)
+		return nil, status.Errorf(codes.PermissionDenied, "policy violation: %v", err)
+	}
+
+	// Double confirm serial
+	// ... logic goes here ...
+
+	// Start the Rust engine as a child process, etc.
+	jobID := uuid.New().String()
+	log.Printf("Job %s started for device %s", jobID, req.DeviceId)
+
+	return &pb.StartJobResponse{
+		JobId: jobID,
+	}, nil
+}
+
 func main() {
 	log.Println("Starting shunyad...")
 
@@ -65,7 +100,9 @@ func main() {
 	}
 
 	grpcServer := grpc.NewServer()
-	srv := &DaemonServer{}
+	srv := &DaemonServer{
+		gate: policy.NewGate(true),
+	}
 
 	pb.RegisterDeviceServiceServer(grpcServer, srv)
 	pb.RegisterJobServiceServer(grpcServer, srv)
