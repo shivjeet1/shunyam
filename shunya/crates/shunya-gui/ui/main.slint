@@ -1,0 +1,131 @@
+export struct Device {
+    id: string,
+    model: string,
+    capacity: string,
+    status: string,
+}
+
+export component MainWindow inherits Window {
+    title: "Shunya Secure Wipe";
+    width: 800px;
+    height: 600px;
+    background: #1e1e1e;
+
+    in property <[Device]> devices: [
+        { id: "/dev/nvme0n1", model: "Samsung 980 PRO", capacity: "1.0 TB", status: "Ready" },
+        { id: "/dev/sda", model: "WD Blue", capacity: "500 GB", status: "Wiping (45%)" }
+    ];
+    
+    in property <int> selected_device_index: 0;
+
+    callback start_wipe();
+
+    VerticalLayout {
+        padding: 20px;
+        spacing: 20px;
+
+        Text {
+            text: "Shunya Secure Wipe";
+            font-size: 24px;
+            color: white;
+            horizontal-alignment: center;
+        }
+
+        HorizontalLayout {
+            spacing: 20px;
+            
+            // Left Pane: Disks Grid
+            Rectangle {
+                width: parent.width * 0.4;
+                background: #2d2d2d;
+                border-radius: 8px;
+                
+                VerticalLayout {
+                    padding: 10px;
+                    spacing: 10px;
+                    
+                    Text {
+                        text: "Available Devices";
+                        color: #aaaaaa;
+                        font-size: 16px;
+                    }
+                    
+                    VerticalLayout {
+                        for device[i] in root.devices : Rectangle {
+                            height: 60px;
+                            background: i == root.selected_device_index ? #3a3a3a : transparent;
+                            border-radius: 4px;
+
+                            HorizontalLayout {
+                                padding: 10px;
+                                Text {
+                                    text: device.id + " - " + device.model;
+                                    color: white;
+                                    vertical-alignment: center;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Right Pane: Details & Wipe Control
+            Rectangle {
+                background: #2d2d2d;
+                border-radius: 8px;
+
+                VerticalLayout {
+                    padding: 20px;
+                    spacing: 15px;
+
+                    Text {
+                        text: "Device Details";
+                        color: #aaaaaa;
+                        font-size: 16px;
+                    }
+
+                    Text {
+                        text: "ID: " + root.devices[root.selected_device_index].id;
+                        color: white;
+                    }
+                    Text {
+                        text: "Model: " + root.devices[root.selected_device_index].model;
+                        color: white;
+                    }
+                    Text {
+                        text: "Capacity: " + root.devices[root.selected_device_index].capacity;
+                        color: white;
+                    }
+                    Text {
+                        text: "Status: " + root.devices[root.selected_device_index].status;
+                        color: #4CAF50; // green-ish
+                    }
+
+                    Rectangle {
+                        vertical-stretch: 1;
+                    }
+
+                    // Footer button
+                    Rectangle {
+                        height: 50px;
+                        background: #d32f2f; // Red for destructive action
+                        border-radius: 8px;
+
+                        Text {
+                            text: "START WIPE";
+                            color: white;
+                            font-size: 18px;
+                            font-weight: 700;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+
+                        TouchArea {
+                            clicked => { root.start_wipe(); }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
