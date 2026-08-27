@@ -7,12 +7,14 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+
 	"github.com/google/uuid"
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	"google.golang.org/grpc"
-
+	"shunya/internal/db"
+	"shunya/internal/job"
 	"shunya/internal/policy"
 	"shunya/internal/tools"
 	pb "shunya/shunya/v1"
@@ -24,7 +26,8 @@ type DaemonServer struct {
 	pb.UnimplementedJobServiceServer
 	pb.UnimplementedRecoveryServiceServer
 	pb.UnimplementedCertificateServiceServer
-	gate *policy.Gate
+	gate    *policy.Gate
+	machine *job.Machine
 }
 
 func (s *DaemonServer) ListDevices(ctx context.Context, req *pb.ListDevicesRequest) (*pb.ListDevicesResponse, error) {
@@ -33,7 +36,6 @@ func (s *DaemonServer) ListDevices(ctx context.Context, req *pb.ListDevicesReque
 		if err := adapter.ListDevices(); err != nil {
 			log.Printf("Native Rust probing failed: %v", err)
 		}
-		// For MVP, if it's Mac/Win we just return empty as we are printing to stdout in the rust cli
 		return &pb.ListDevicesResponse{}, nil
 	}
 
@@ -62,20 +64,21 @@ func (s *DaemonServer) ListDevices(ctx context.Context, req *pb.ListDevicesReque
 }
 
 func (s *DaemonServer) StartJob(ctx context.Context, req *pb.StartJobRequest) (*pb.StartJobResponse, error) {
-	// Policy check! 
-	// For MVP, we assume local presence is satisfied if they are calling this socket (requires root).
 	isAuthorized := true
 	if err := s.gate.CanWipe(req.DeviceId, isAuthorized); err != nil {
 		log.Printf("Job rejected by policy gate for %s: %v", req.DeviceId, err)
 		return nil, status.Errorf(codes.PermissionDenied, "policy violation: %v", err)
 	}
 
-	// Double confirm serial
-	// ... logic goes here ...
-
-	// Start the Rust engine as a child process, etc.
 	jobID := uuid.New().String()
-	log.Printf("Job %s started for device %s", jobID, req.DeviceId)
+	
+	// Track job in SQLite via State Machine
+	if err := s.machine.CreateJob(jobID, req.DeviceId); err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to create job: %v", err)
+	}
+
+	// Kick off the background execution
+	go s.machine.SimulateExecution(jobID)
 
 	return &pb.StartJobResponse{
 		JobId: jobID,
@@ -84,6 +87,13 @@ func (s *DaemonServer) StartJob(ctx context.Context, req *pb.StartJobRequest) (*
 
 func main() {
 	log.Println("Starting shunyad...")
+
+	// Initialize DB
+	dbPath := "/tmp/shunya.db"
+	store, err := db.InitStore(dbPath)
+	if err != nil {
+		log.Fatalf("Failed to initialize database: %v", err)
+	}
 
 	socketPath := "/tmp/shunyad.sock"
 	if err := os.RemoveAll(socketPath); err != nil {
@@ -101,7 +111,8 @@ func main() {
 
 	grpcServer := grpc.NewServer()
 	srv := &DaemonServer{
-		gate: policy.NewGate(true),
+		gate:    policy.NewGate(true),
+		machine: job.NewMachine(store),
 	}
 
 	pb.RegisterDeviceServiceServer(grpcServer, srv)
