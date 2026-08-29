@@ -1,0 +1,55 @@
+# Contributor: Shunya Secure Wipe <admin@shunya.local>
+# Maintainer: Shunya Secure Wipe <admin@shunya.local>
+pkgname=shunya
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="Shunya Secure Wipe - Multi-component hardware sanitization platform"
+url="https://shunya.local/"
+arch="x86_64"
+license="Proprietary"
+depends=""
+makedepends="go cargo rust rustfmt protoc protobuf-dev fontconfig-dev linux-headers eudev-dev"
+# For a local build, source is usually the tarball, but we can point it to a local directory or git repo.
+# We'll assume the builder symlinks or copies the source to $srcdir/shunya-$pkgver
+source=""
+
+# In a real environment, you'd specify the local tarball or git repo here.
+# source="$pkgname-$pkgver.tar.gz"
+
+build() {
+    cd "$builddir"
+    
+    # 1. Build the Go Daemon (shunyad) and CLI (shunya)
+    cd go
+    go build -o ../bin/shunyad cmd/shunyad/main.go
+    go build -o ../bin/shunya cmd/shunya/main.go
+    cd ..
+    
+    # 2. Build the Rust Engine and GUI
+    cd crates
+    cargo build --release --bin shunya-engine
+    cargo build --release --bin shunya-gui
+    cp target/release/shunya-engine ../bin/
+    cp target/release/shunya-gui ../bin/
+    cd ..
+}
+
+package() {
+    cd "$builddir"
+    
+    install -d "$pkgdir"/usr/sbin
+    install -d "$pkgdir"/usr/bin
+    install -d "$pkgdir"/usr/share/shunya/ui
+
+    # Daemon (requires root)
+    install -m755 bin/shunyad "$pkgdir"/usr/sbin/shunyad
+    
+    # CLI
+    install -m755 bin/shunya "$pkgdir"/usr/bin/shunya
+    
+    # Engine (requires root / privileged ioctls)
+    install -m755 bin/shunya-engine "$pkgdir"/usr/sbin/shunya-engine
+    
+    # GUI
+    install -m755 bin/shunya-gui "$pkgdir"/usr/bin/shunya-gui
+}
