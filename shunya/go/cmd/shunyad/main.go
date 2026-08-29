@@ -78,7 +78,9 @@ func (s *DaemonServer) StartJob(ctx context.Context, req *pb.StartJobRequest) (*
 	}
 
 	// Kick off the background execution
-	go s.machine.SimulateExecution(jobID)
+	if err := tools.StreamWipeJob(s.machine, req, jobID); err != nil {
+			s.machine.Fail(jobID, err)
+		}
 
 	return &pb.StartJobResponse{
 		JobId: jobID,
