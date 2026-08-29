@@ -5,9 +5,7 @@ import (
 	"log"
 	"net"
 	"os"
-	"os/signal"
-	"syscall"
-
+	
 	"github.com/google/uuid"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -72,43 +70,44 @@ func (s *DaemonServer) StartJob(ctx context.Context, req *pb.StartJobRequest) (*
 
 	jobID := uuid.New().String()
 	
-	// Track job in SQLite via State Machine
 	if err := s.machine.CreateJob(jobID, req.DeviceId); err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to create job: %v", err)
 	}
 
-	// Kick off the background execution
 	if err := tools.StreamWipeJob(s.machine, req, jobID); err != nil {
-			s.machine.Fail(jobID, err)
-		}
+		s.machine.Fail(jobID, err)
+	}
 
 	return &pb.StartJobResponse{
 		JobId: jobID,
 	}, nil
 }
 
-func main() {
-	log.Println("Starting shunyad...")
-
-	// Initialize DB
-	dbPath := "/tmp/shunya.db"
+// runServer sets up and runs the gRPC server. It returns the running server so it can be gracefully stopped.
+func runServer(dbPath, socketPath string) (*grpc.Server, error) {
 	store, err := db.InitStore(dbPath)
 	if err != nil {
-		log.Fatalf("Failed to initialize database: %v", err)
+		return nil, err
 	}
 
-	socketPath := "/tmp/shunyad.sock"
-	if err := os.RemoveAll(socketPath); err != nil {
-		log.Fatalf("Failed to remove existing socket: %v", err)
+	// On Windows, named pipes are usually used instead of Unix sockets, but for simplicity
+	// if we're simulating a socket, we use a localhost TCP port or named pipe.
+	// For cross-platform MVP scaffolding, we'll listen on TCP if socketPath starts with ":"
+	
+	var lis net.Listener
+	if socketPath[0] == ':' {
+		lis, err = net.Listen("tcp", socketPath)
+	} else {
+		// Unix socket
+		os.RemoveAll(socketPath)
+		lis, err = net.Listen("unix", socketPath)
+		if err == nil {
+			os.Chmod(socketPath, 0666)
+		}
 	}
 
-	lis, err := net.Listen("unix", socketPath)
 	if err != nil {
-		log.Fatalf("Failed to listen: %v", err)
-	}
-
-	if err := os.Chmod(socketPath, 0666); err != nil {
-		log.Fatalf("Failed to chmod socket: %v", err)
+		return nil, err
 	}
 
 	grpcServer := grpc.NewServer()
@@ -129,10 +128,5 @@ func main() {
 		}
 	}()
 
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
-	<-sigChan
-
-	log.Println("Shutting down shunyad...")
-	grpcServer.GracefulStop()
+	return grpcServer, nil
 }
