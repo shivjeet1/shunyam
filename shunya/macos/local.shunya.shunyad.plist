@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- Unique identifier for the Shunya daemon -->
+    <key>Label</key>
+    <string>local.shunya.shunyad</string>
+    
+    <!-- Path to the executable. We assume standard installation to /usr/local/sbin -->
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/local/sbin/shunyad</string>
+    </array>
+    
+    <!-- Keep the daemon alive aggressively -->
+    <key>KeepAlive</key>
+    <true/>
+    
+    <!-- Run at boot as the root user -->
+    <key>RunAtLoad</key>
+    <true/>
+    
+    <!-- Send standard output and error to a log file -->
+    <key>StandardOutPath</key>
+    <string>/var/log/shunyad.log</string>
+    <key>StandardErrorPath</key>
+    <string>/var/log/shunyad.err.log</string>
+</dict>
+</plist>
