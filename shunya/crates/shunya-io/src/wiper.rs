@@ -33,6 +33,11 @@ impl Wiper {
 
     /// Performs a single-pass overwrite using ChaCha20 random stream, writing in 4MiB aligned chunks.
     pub fn overwrite(&mut self) -> Result<(), WipeError> {
+        #[cfg(target_os = "macos")]
+        if let Err(e) = crate::macos::prepare_device(&self.device_path) {
+            eprintln!("macOS prepare warning: {}", e);
+        }
+
         let chunk_size = 4 * 1024 * 1024; // 4 MiB
         let alignment = 4096;
 
