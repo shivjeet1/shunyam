@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
 pub mod pdf;
+pub mod piv;
 pub mod signer;
 
 /// Represents the canonical data of a completed job.
