@@ -2,33 +2,71 @@ package policy
 
 import (
 	"bufio"
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
 	"os"
 	"strings"
+	"sync"
+	"time"
 )
 
 var (
 	ErrActiveBootDrive   = errors.New("policy violation: target is the active boot drive")
 	ErrPartitionsMounted = errors.New("policy violation: target has mounted partitions")
-	ErrUnauthorized      = errors.New("policy violation: unauthorized caller (requires physical presence or signed token)")
+	ErrUnauthorized      = errors.New("policy violation: unauthorized caller (requires physical presence challenge)")
 )
 
-// Gate evaluates if a device wipe operation is permitted
+type activeChallenge struct {
+	expected string
+	expires  time.Time
+}
+
+// Gate evaluates if a device wipe operation is permitted and manages physical presence challenges
 type Gate struct {
 	requireLocalPresence bool
+	challenges           map[string]activeChallenge // map[deviceID]challenge
+	mu                   sync.Mutex
 }
 
 func NewGate(requireLocal bool) *Gate {
 	return &Gate{
 		requireLocalPresence: requireLocal,
+		challenges:           make(map[string]activeChallenge),
 	}
 }
 
-// CanWipe checks all policies before permitting a wipe on devicePath (e.g. "/dev/nvme0n1")
-func (g *Gate) CanWipe(devicePath string, isAuthorized bool) error {
-	// 1. Check Caller Authorization
-	if g.requireLocalPresence && !isAuthorized {
-		return ErrUnauthorized
+// GenerateChallenge creates a random 4-byte hex string (8 characters) for a specific device
+func (g *Gate) GenerateChallenge(deviceID string) (string, error) {
+	bytes := make([]byte, 4)
+	if _, err := rand.Read(bytes); err != nil {
+		return "", err
+	}
+	challenge := strings.ToUpper(hex.EncodeToString(bytes))
+
+	g.mu.Lock()
+	defer g.mu.Unlock() // wait, defer g.mu.Unlock()
+	g.challenges[deviceID] = activeChallenge{
+		expected: challenge,
+		expires:  time.Now().Add(5 * time.Minute),
+	}
+	return challenge, nil
+}
+
+// CanWipe checks all policies before permitting a wipe on devicePath
+func (g *Gate) CanWipe(devicePath string, challengeResponse string) error {
+	// 1. Check Caller Authorization (Physical Presence Challenge)
+	if g.requireLocalPresence {
+		g.mu.Lock()
+		challenge, exists := g.challenges[devicePath]
+		if exists {
+			delete(g.challenges, devicePath) // Challenge is one-time use
+		}
+		g.mu.Unlock()
+
+		if !exists || time.Now().After(challenge.expires) || challengeResponse != challenge.expected {
+			return ErrUnauthorized
+		}
 	}
 
 	// 2. Prevent wiping of mounted drives (including boot drive)
@@ -37,7 +75,6 @@ func (g *Gate) CanWipe(devicePath string, isAuthorized bool) error {
 		return err // fail secure if we can't determine mount state
 	}
 	if mounted {
-		// As a heuristic for MVP, if it's mounted, we assume it could be the boot drive or a protected mount
 		return ErrPartitionsMounted
 	}
 
@@ -48,8 +85,6 @@ func (g *Gate) CanWipe(devicePath string, isAuthorized bool) error {
 func isDeviceMounted(devicePath string) (bool, error) {
 	file, err := os.Open("/proc/mounts")
 	if err != nil {
-		// If we are on Windows/macOS, we need OS-specific checks.
-		// For MVP, if /proc/mounts doesn't exist, we assume we aren't on Linux or can't read it.
 		if os.IsNotExist(err) {
 			return false, nil // Bypass for non-Linux testing
 		}
@@ -63,7 +98,6 @@ func isDeviceMounted(devicePath string) (bool, error) {
 		fields := strings.Fields(line)
 		if len(fields) > 0 {
 			mountSource := fields[0]
-			// e.g., if devicePath is "/dev/nvme0n1", and mountSource is "/dev/nvme0n1p1"
 			if strings.HasPrefix(mountSource, devicePath) {
 				return true, nil
 			}

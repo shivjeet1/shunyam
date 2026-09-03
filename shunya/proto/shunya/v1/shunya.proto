@@ -9,7 +9,6 @@ option go_package = "shunya/proto/shunya/v1";
 // ---------------------------------------------------------
 
 service DeviceService {
-  // Enumerate all attached storage devices and their capabilities.
   rpc ListDevices(ListDevicesRequest) returns (ListDevicesResponse);
 }
 
@@ -21,7 +20,7 @@ message ListDevicesResponse {
 
 message Device {
   string id = 1;
-  string class = 2; // e.g., nvme-ssd, sata-ssd
+  string class = 2;
   string model = 3;
   string serial = 4;
   string firmware = 5;
@@ -36,6 +35,9 @@ message Device {
 // ---------------------------------------------------------
 
 service JobService {
+  // Generate a random physical presence challenge for a specific device
+  rpc GetChallenge(GetChallengeRequest) returns (GetChallengeResponse);
+
   // Start a sanitization/wipe job on a specific device
   rpc StartJob(StartJobRequest) returns (StartJobResponse);
   
@@ -43,10 +45,18 @@ service JobService {
   rpc StreamEvents(StreamEventsRequest) returns (stream JobEvent);
 }
 
+message GetChallengeRequest {
+  string device_id = 1;
+}
+
+message GetChallengeResponse {
+  string challenge_string = 1; // e.g., "WIPE-9421"
+}
+
 message StartJobRequest {
   string device_id = 1;
-  string serial_confirmation = 2; // Last 4 chars of serial
-  string requested_method = 3; // empty means let planner decide
+  string challenge_response = 2; // User must provide the exact challenge_string
+  string requested_method = 3;
 }
 
 message StartJobResponse {
@@ -61,14 +71,13 @@ message JobEvent {
   string job_id = 1;
   string step_name = 2;
   float progress_percent = 3;
-  string status = 4; // "running", "success", "failed"
+  string status = 4;
   string message = 5;
 }
 
 // ---------------------------------------------------------
 // Recovery Service
 // ---------------------------------------------------------
-
 service RecoveryService {
   rpc StartRecovery(StartRecoveryRequest) returns (StartRecoveryResponse);
 }
@@ -76,7 +85,7 @@ service RecoveryService {
 message StartRecoveryRequest {
   string source_device_id = 1;
   string output_directory = 2;
-  string profile = 3; // "triage", "full", "residue"
+  string profile = 3;
 }
 
 message StartRecoveryResponse {
@@ -86,7 +95,6 @@ message StartRecoveryResponse {
 // ---------------------------------------------------------
 // Certificate Service
 // ---------------------------------------------------------
-
 service CertificateService {
   rpc GetCertificate(GetCertificateRequest) returns (GetCertificateResponse);
 }
@@ -96,7 +104,7 @@ message GetCertificateRequest {
 }
 
 message GetCertificateResponse {
-  string cert_json = 1; // Canonical JSON
+  string cert_json = 1;
   bytes pdf_data = 2;
   string qr_payload = 3;
 }

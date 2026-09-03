@@ -62,8 +62,8 @@ func (s *DaemonServer) ListDevices(ctx context.Context, req *pb.ListDevicesReque
 }
 
 func (s *DaemonServer) StartJob(ctx context.Context, req *pb.StartJobRequest) (*pb.StartJobResponse, error) {
-	isAuthorized := true
-	if err := s.gate.CanWipe(req.DeviceId, isAuthorized); err != nil {
+	challengeResponse := req.ChallengeResponse
+	if err := s.gate.CanWipe(req.DeviceId, challengeResponse); err != nil {
 		log.Printf("Job rejected by policy gate for %s: %v", req.DeviceId, err)
 		return nil, status.Errorf(codes.PermissionDenied, "policy violation: %v", err)
 	}
@@ -129,4 +129,14 @@ func runServer(dbPath, socketPath string) (*grpc.Server, error) {
 	}()
 
 	return grpcServer, nil
+}
+
+func (s *DaemonServer) GetChallenge(ctx context.Context, req *pb.GetChallengeRequest) (*pb.GetChallengeResponse, error) {
+	challenge, err := s.gate.GenerateChallenge(req.DeviceId)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to generate challenge: %v", err)
+	}
+	return &pb.GetChallengeResponse{
+		ChallengeString: challenge,
+	}, nil
 }
