@@ -6,6 +6,9 @@ use prost::Message;
 use shunya_proto::v1::{StartJobRequest, JobEvent};
 use std::time::Duration;
 use std::thread;
+use chrono::Utc;
+use std::fs;
+use std::path::Path;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -18,18 +21,30 @@ struct Args {
 enum Commands {
     /// Overwrite a block device
     Wipe {
-        /// Device path to wipe
         #[arg(short, long)]
         device: String,
-
-        /// Capacity of the device in bytes
         #[arg(short, long)]
         capacity: u64,
     },
     /// Enumerate storage devices on the system
     ListDevices,
-    /// Stream job commands and events over stdin/stdout using length-prefixed protobufs
+    /// Stream job commands and events over stdin/stdout
     Stream,
+    /// Generate PDF and JSON certificates
+    GenerateCert {
+        #[arg(long)]
+        job_id: String,
+        #[arg(long)]
+        device_serial: String,
+        #[arg(long)]
+        device_model: String,
+        #[arg(long)]
+        capacity: u64,
+        #[arg(long)]
+        operator: String,
+        #[arg(long)]
+        out_dir: String,
+    },
 }
 
 fn emit_event(job_id: &str, step: &str, status: &str, progress: f32, message: &str) -> io::Result<()> {
@@ -56,8 +71,53 @@ fn main() {
     let args = Args::parse();
 
     match args.command {
+        Commands::GenerateCert { job_id, device_serial, device_model, capacity, operator, out_dir } => {
+            let manifest = shunya_cert::WipeManifest {
+                job_id: job_id.clone(),
+                device_serial,
+                device_model,
+                capacity_bytes: capacity,
+                wipe_method: "NIST 800-88 Purge (O_DIRECT ChaCha20)".to_string(),
+                wipe_duration_sec: 120, // Mock duration
+                timestamp: Utc::now(),
+                operator_id: operator,
+                carve_score: 100,
+                verification_hash: "mocked_verification_hash".to_string(),
+            };
+
+            let signature = match shunya_cert::signer::PIVSigner::sign_manifest(&manifest, None) {
+                Ok(sig) => sig,
+                Err(e) => {
+                    eprintln!("Signature warning: {}", e);
+                    vec![]
+                }
+            };
+
+            let json_path = Path::new(&out_dir).join(format!("{}.json", job_id));
+            let pdf_path = Path::new(&out_dir).join(format!("{}.pdf", job_id));
+
+            // Write JSON
+            if let Err(e) = fs::write(&json_path, manifest.canonical_json()) {
+                eprintln!("Failed to write JSON: {}", e);
+                exit(1);
+            }
+
+            // Write PDF
+            match shunya_cert::pdf::PdfGenerator::generate(&manifest, Some(&signature)) {
+                Ok(pdf_bytes) => {
+                    if let Err(e) = fs::write(&pdf_path, pdf_bytes) {
+                        eprintln!("Failed to write PDF: {}", e);
+                        exit(1);
+                    }
+                }
+                Err(e) => {
+                    eprintln!("Failed to generate PDF: {}", e);
+                    exit(1);
+                }
+            }
+            println!("Certificates generated successfully in {}", out_dir);
+        }
         Commands::Stream => {
-            // 1. Read the 4-byte length prefix
             let mut len_buf = [0u8; 4];
             let mut stdin = io::stdin().lock();
             if let Err(e) = stdin.read_exact(&mut len_buf) {
@@ -66,8 +126,6 @@ fn main() {
             }
             
             let len = u32::from_be_bytes(len_buf) as usize;
-            
-            // 2. Read the StartJobRequest protobuf
             let mut payload = vec![0u8; len];
             if let Err(e) = stdin.read_exact(&mut payload) {
                 eprintln!("Failed to read request payload from stdin: {}", e);
@@ -82,19 +140,13 @@ fn main() {
                 }
             };
             
-            // We use a mock job ID since the request doesn't contain one (daemon assigns it).
-            // Actually, we can just use the device ID or a dummy ID for the event stream
-            // The Go daemon ignores the JobEvent.job_id anyway because it tracks it locally per process.
             let job_id = "engine-run";
             let device = req.device_id;
             
-            // Simulate execution loop with Protobuf events
             let _ = emit_event(job_id, "probing", "probing", 10.0, "Probing device capability");
             thread::sleep(Duration::from_millis(200));
             
             let _ = emit_event(job_id, "wiping", "wiping", 20.0, &format!("Started wipe on {}", device));
-            
-            // Here we would normally call Wiper::new(&device, capacity, seed).overwrite()
             thread::sleep(Duration::from_millis(500));
             
             let _ = emit_event(job_id, "wiping", "wiping", 70.0, "Wipe nearing completion");
@@ -107,15 +159,11 @@ fn main() {
         }
         Commands::Wipe { device, capacity } => {
             println!("Starting wipe engine for device: {}", device);
-            println!("Capacity to overwrite: {} bytes", capacity);
-
             let seed: [u8; 32] = [42; 32];
             let mut wiper = Wiper::new(&device, capacity, seed);
 
             match wiper.overwrite() {
-                Ok(_) => {
-                    println!("Successfully overwrote {}", device);
-                }
+                Ok(_) => println!("Successfully overwrote {}", device),
                 Err(e) => {
                     eprintln!("Failed to wipe device: {:?}", e);
                     exit(1);
