@@ -1,7 +1,7 @@
 .PHONY: all build build-go build-rust install clean
 
 # Default prefix for installation
-PREFIX ?= /usr/local
+PREFIX ?= $(HOME)/.local
 BINDIR ?= $(PREFIX)/bin
 
 # Output directories

@@ -1,7 +1,7 @@
 .PHONY: all build install clean test
 
 # Default prefix for installation
-PREFIX ?= /usr/local
+PREFIX ?= $(HOME)/.local
 BINDIR ?= $(PREFIX)/bin
 DESTDIR ?=
 
