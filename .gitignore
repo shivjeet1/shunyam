@@ -1,3 +1,20 @@
+# Build output
+shunya/build/
+shunya/crates/target/
+target/
 
-prd.md
+# Go
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
 
+# Editor/Temp
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Documents
+prd-plan.md
