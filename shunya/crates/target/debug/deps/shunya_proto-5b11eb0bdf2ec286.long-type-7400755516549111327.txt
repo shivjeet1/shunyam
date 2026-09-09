@@ -1,1 +1,0 @@
-ProstCodec<GetCertificateRequest, GetCertificateResponse>

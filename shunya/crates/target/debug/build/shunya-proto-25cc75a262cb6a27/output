@@ -1,2 +1,0 @@
-cargo:rerun-if-changed=../../proto/shunya/v1/shunya.proto
-cargo:rerun-if-changed=../../proto
