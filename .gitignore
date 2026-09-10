@@ -1,6 +1,6 @@
 # Build output
-shunya/build/
-shunya/crates/target/
+build/
+crates/target/
 target/
 
 # Go
