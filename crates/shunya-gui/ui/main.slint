@@ -1,4 +1,4 @@
-import { LineEdit } from "std-widgets.slint";
+import { LineEdit, Button, ScrollView, ProgressIndicator } from "std-widgets.slint";
 
 export struct Device {
     id: string,
@@ -10,70 +10,152 @@ export struct Device {
 
 export component MainWindow inherits Window {
     title: "Shunya Secure Wipe";
-    width: 800px;
-    height: 600px;
-    background: #1e1e1e;
+    width: 900px;
+    height: 650px;
+    background: #121212;
+    default-font-family: "Inter, sans-serif";
 
-    in property <[Device]> devices: [
-        { id: "/dev/nvme0n1", model: "Samsung 980 PRO", capacity: "1.0 TB", status: "Ready", progress: 0.0 }
-    ];
+    in property <[Device]> devices: [];
+    in property <bool> daemon_connected: false;
     
-    in-out property <int> selected_device_index: 0;
+    in-out property <int> selected_device_index: -1;
     in-out property <string> active_challenge: "";
     property <string> challenge_input: "";
 
     callback start_wipe(string, string);
     callback request_challenge(string);
+    callback start_daemon();
 
     VerticalLayout {
-        padding: 20px;
-        spacing: 20px;
+        padding: 30px;
+        spacing: 25px;
 
-        Text {
-            text: "Shunya Secure Wipe";
-            font-size: 24px;
-            color: white;
-            horizontal-alignment: center;
+        // Header
+        HorizontalLayout {
+            alignment: space-between;
+            Text {
+                text: "Shunya Secure Wipe";
+                font-size: 28px;
+                font-weight: 800;
+                color: #ffffff;
+                vertical-alignment: center;
+            }
+            
+            HorizontalLayout {
+                spacing: 15px;
+                alignment: end;
+                Rectangle {
+                    width: 12px;
+                    height: 12px;
+                    border-radius: 6px;
+                    background: root.daemon_connected ? #4CAF50 : #F44336;
+                }
+                Text {
+                    text: root.daemon_connected ? "Daemon Online" : "Daemon Offline";
+                    color: root.daemon_connected ? #4CAF50 : #F44336;
+                    font-size: 14px;
+                    font-weight: 600;
+                    vertical-alignment: center;
+                }
+                if !root.daemon_connected : Button {
+                    text: "Start Daemon";
+                    clicked => { root.start_daemon(); }
+                }
+            }
         }
 
-        HorizontalLayout {
-            spacing: 20px;
+        if !root.daemon_connected : Rectangle {
+            background: #1e1e1e;
+            border-radius: 12px;
+            VerticalLayout {
+                alignment: center;
+                Text {
+                    text: "Cannot connect to Shunya Daemon (127.0.0.1:9090)";
+                    color: #aaaaaa;
+                    horizontal-alignment: center;
+                    font-size: 16px;
+                }
+                Text {
+                    text: "Please start the daemon or click the button above.";
+                    color: #888888;
+                    horizontal-alignment: center;
+                    font-size: 14px;
+                }
+            }
+        }
+
+        if root.daemon_connected : HorizontalLayout {
+            spacing: 25px;
             
             // Left Pane: Disks Grid
             Rectangle {
-                width: parent.width * 0.4;
-                background: #2d2d2d;
-                border-radius: 8px;
+                width: parent.width * 0.45;
+                background: #1e1e1e;
+                border-radius: 12px;
+                border-width: 1px;
+                border-color: #333333;
                 
                 VerticalLayout {
-                    padding: 10px;
-                    spacing: 10px;
+                    padding: 20px;
+                    spacing: 15px;
                     
                     Text {
-                        text: "Available Devices";
-                        color: #aaaaaa;
-                        font-size: 16px;
+                        text: "Target Storage Devices";
+                        color: #ffffff;
+                        font-size: 18px;
+                        font-weight: 700;
                     }
                     
-                    VerticalLayout {
-                        for device[i] in root.devices : Rectangle {
-                            height: 60px;
-                            background: i == root.selected_device_index ? #3a3a3a : transparent;
-                            border-radius: 4px;
+                    if root.devices.length == 0 : Text {
+                        text: "No devices found.";
+                        color: #777777;
+                    }
 
-                            HorizontalLayout {
-                                padding: 10px;
-                                Text {
-                                    text: device.id + " - " + device.model;
-                                    color: white;
-                                    vertical-alignment: center;
+                    ScrollView {
+                        VerticalLayout {
+                            spacing: 8px;
+                            for device[i] in root.devices : Rectangle {
+                                height: 75px;
+                                background: i == root.selected_device_index ? #294060 : #252525;
+                                border-radius: 8px;
+                                border-width: 1px;
+                                border-color: i == root.selected_device_index ? #4a7ab7 : transparent;
+
+                                HorizontalLayout {
+                                    padding: 15px;
+                                    spacing: 15px;
+                                    Rectangle {
+                                        width: 40px;
+                                        background: #333333;
+                                        border-radius: 8px;
+                                        Text {
+                                            text: "💾";
+                                            horizontal-alignment: center;
+                                            vertical-alignment: center;
+                                            font-size: 20px;
+                                        }
+                                    }
+                                    VerticalLayout {
+                                        alignment: center;
+                                        Text {
+                                            text: device.model;
+                                            color: #ffffff;
+                                            font-weight: 600;
+                                            font-size: 15px;
+                                        }
+                                        Text {
+                                            text: device.id + " • " + device.capacity;
+                                            color: #999999;
+                                            font-size: 12px;
+                                        }
+                                    }
                                 }
-                            }
-                            TouchArea {
-                                clicked => { 
-                                    root.selected_device_index = i; 
-                                    root.active_challenge = "";
-                                    root.challenge_input = "";
+                                TouchArea {
+                                    clicked => { 
+                                        root.selected_device_index = i; 
+                                        root.active_challenge = "";
+                                        root.challenge_input = "";
+                                    }
                                 }
                             }
                         }
@@ -83,92 +165,117 @@ export component MainWindow inherits Window {
 
             // Right Pane: Details & Wipe Control
             Rectangle {
-                background: #2d2d2d;
-                border-radius: 8px;
+                background: #1e1e1e;
+                border-radius: 12px;
+                border-width: 1px;
+                border-color: #333333;
 
-                VerticalLayout {
-                    padding: 20px;
-                    spacing: 15px;
+                if root.selected_device_index < 0 || root.selected_device_index >= root.devices.length : VerticalLayout {
+                    alignment: center;
+                    Text {
+                        text: "Select a device from the left panel";
+                        color: #666666;
+                        horizontal-alignment: center;
+                    }
+                }
 
-                    if root.devices.length > 0 : VerticalLayout {
+                if root.selected_device_index >= 0 && root.selected_device_index < root.devices.length : VerticalLayout {
+                    padding: 30px;
+                    spacing: 20px;
+
+                    Text {
+                        text: "Sanitization Setup";
+                        color: #ffffff;
+                        font-size: 20px;
+                        font-weight: 700;
+                    }
+
+                    Rectangle {
+                        background: #252525;
+                        border-radius: 8px;
+                        padding: 15px;
+                        height: 100px;
+                        VerticalLayout {
+                            spacing: 8px;
+                            alignment: center;
+                            padding-left: 15px;
+                            padding-right: 15px;
+                            Text {
+                                text: "Target: " + root.devices[root.selected_device_index].model;
+                                color: #dddddd;
+                                font-size: 16px;
+                            }
+                            Text {
+                                text: "Block Device: " + root.devices[root.selected_device_index].id;
+                                color: #888888;
+                            }
+                        }
+                    }
+
+                    HorizontalLayout {
                         spacing: 15px;
+                        Text { text: "Status:"; color: #aaaaaa; }
                         Text {
-                            text: "Device Details";
-                            color: #aaaaaa;
-                            font-size: 16px;
+                            text: root.devices[root.selected_device_index].status;
+                            color: root.devices[root.selected_device_index].progress == 100.0 ? #4CAF50 : #ff9800;
+                            font-weight: 600;
                         }
+                    }
+                    
+                    ProgressIndicator {
+                        progress: root.devices[root.selected_device_index].progress / 100.0;
+                        height: 12px;
+                    }
 
-                        Text {
-                            text: "ID: " + root.devices[root.selected_device_index].id;
-                            color: white;
+                    Rectangle { vertical-stretch: 1; }
+                    
+                    if root.active_challenge == "" : Button {
+                        text: "AUTHORIZE SECURE WIPE";
+                        primary: true;
+                        height: 45px;
+                        clicked => { 
+                            root.request_challenge(root.devices[root.selected_device_index].id); 
                         }
-                        Text {
-                            text: "Model: " + root.devices[root.selected_device_index].model;
-                            color: white;
-                        }
-                        Text {
-                            text: "Capacity: " + root.devices[root.selected_device_index].capacity;
-                            color: white;
-                        }
-                        Text {
-                            text: "Status: " + root.devices[root.selected_device_index].status + " (" + round(root.devices[root.selected_device_index].progress) + "%)";
-                            color: #4CAF50; // green-ish
-                        }
+                    }
 
-                        Rectangle {
-                            vertical-stretch: 1;
-                        }
-                        
-                        if root.active_challenge == "" : Rectangle {
-                            height: 40px;
-                            background: #d32f2f;
-                            border-radius: 8px;
+                    if root.active_challenge != "" : Rectangle {
+                        background: #2a1515;
+                        border-radius: 8px;
+                        border-color: #d32f2f;
+                        border-width: 1px;
+                        padding: 20px;
+
+                        VerticalLayout {
+                            spacing: 15px;
                             Text {
-                                text: "AUTHORIZE WIPE";
-                                color: white;
+                                text: "⚠️ Physical Presence Required";
+                                color: #ff5252;
+                                font-weight: 700;
+                                font-size: 16px;
+                            }
+                            Text {
+                                text: "Type the exact challenge code to execute destructive wipe:";
+                                color: #dddddd;
+                                font-size: 14px;
+                            }
+                            Text {
+                                text: root.active_challenge;
+                                color: #ffffff;
+                                font-size: 24px;
+                                font-weight: 800;
                                 horizontal-alignment: center;
-                                vertical-alignment: center;
-                            }
-                            TouchArea {
-                                clicked => { 
-                                    root.request_challenge(root.devices[root.selected_device_index].id); 
-                                }
-                            }
-                        }
-
-                        if root.active_challenge != "" : VerticalLayout {
-                            spacing: 10px;
-                            Text {
-                                text: "Physical Presence Challenge:";
-                                color: #ffcc00;
-                            }
-                            Text {
-                                text: "Type '" + root.active_challenge + "' to confirm wipe:";
-                                color: white;
                             }
                             LineEdit {
-                                placeholder-text: root.active_challenge;
+                                placeholder-text: "Enter code...";
                                 text <=> root.challenge_input;
                             }
                             
-                            Rectangle {
-                                height: 50px;
-                                background: #d32f2f; // Red for destructive action
-                                border-radius: 8px;
-
-                                Text {
-                                    text: "START WIPE";
-                                    color: white;
-                                    font-size: 18px;
-                                    font-weight: 700;
-                                    horizontal-alignment: center;
-                                    vertical-alignment: center;
-                                }
-
-                                TouchArea {
-                                    clicked => { 
-                                        root.start_wipe(root.devices[root.selected_device_index].id, root.challenge_input); 
-                                    }
+                            Button {
+                                text: "EXECUTE WIPE";
+                                primary: true;
+                                enabled: root.challenge_input == root.active_challenge;
+                                clicked => { 
+                                    root.start_wipe(root.devices[root.selected_device_index].id, root.challenge_input); 
                                 }
                             }
                         }

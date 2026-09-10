@@ -6,54 +6,95 @@ use shunya_proto::v1::{ListDevicesRequest, StartJobRequest, GetChallengeRequest,
 use tokio::runtime::Runtime;
 use std::sync::Arc;
 use std::rc::Rc;
-use slint::{VecModel, SharedString, Model};
+use slint::{VecModel, Model};
+use std::time::Duration;
+use std::process::Command;
 
 fn main() -> Result<(), slint::PlatformError> {
     let ui = MainWindow::new()?;
 
-    // Create a tokio runtime for background gRPC tasks
     let rt = Arc::new(Runtime::new().unwrap());
     let ui_handle = ui.as_weak();
 
-    // 1. Fetch live devices on startup
-    rt.spawn(async move {
-        let mut client = match DeviceServiceClient::connect("http://127.0.0.1:9090").await {
-            Ok(c) => c,
-            Err(e) => {
-                println!("Failed to connect to shunyad: {}", e);
-                return;
-            }
-        };
-
-        if let Ok(response) = client.list_devices(ListDevicesRequest {}).await {
-            let devices = response.into_inner().devices;
-            let mut ui_devices = Vec::new();
+    // 1. Daemon Poller and Device Fetcher
+    let rt_clone = rt.clone();
+    let ui_handle_poll = ui_handle.clone();
+    rt_clone.spawn(async move {
+        let mut was_connected = false;
+        loop {
+            let connect_result = DeviceServiceClient::connect("http://127.0.0.1:9090").await;
             
-            for dev in devices {
-                let capacity_str = format!("{:.1} GB", dev.capacity_bytes as f64 / 1_000_000_000.0);
-                ui_devices.push(Device {
-                    id: dev.id.into(),
-                    model: dev.model.into(),
-                    capacity: capacity_str.into(),
-                    status: "Ready".into(),
-                    progress: 0.0,
+            let ui_handle_clone = ui_handle_poll.clone();
+            let is_connected = connect_result.is_ok();
+            
+            let _ = slint::invoke_from_event_loop(move || {
+                if let Some(ui) = ui_handle_clone.upgrade() {
+                    ui.set_daemon_connected(is_connected);
+                }
+            });
+
+            if is_connected && !was_connected {
+                // Just became connected, fetch devices!
+                let mut client = connect_result.unwrap();
+                if let Ok(response) = client.list_devices(ListDevicesRequest {}).await {
+                    let devices = response.into_inner().devices;
+                    let mut ui_devices = Vec::new();
+                    
+                    for dev in devices {
+                        let capacity_str = format!("{:.1} GB", dev.capacity_bytes as f64 / 1_000_000_000.0);
+                        ui_devices.push(Device {
+                            id: dev.id.into(),
+                            model: dev.model.into(),
+                            capacity: capacity_str.into(),
+                            status: "Ready".into(),
+                            progress: 0.0,
+                        });
+                    }
+
+                    let ui_handle_clone2 = ui_handle_poll.clone();
+                    let _ = slint::invoke_from_event_loop(move || {
+                        if let Some(ui) = ui_handle_clone2.upgrade() {
+                            let model = Rc::new(VecModel::from(ui_devices));
+                            ui.set_devices(model.into());
+                        }
+                    });
+                }
+            }
+            
+            if !is_connected {
+                // If it disconnects, clear devices
+                let ui_handle_clone3 = ui_handle_poll.clone();
+                let _ = slint::invoke_from_event_loop(move || {
+                    if let Some(ui) = ui_handle_clone3.upgrade() {
+                        let empty: Vec<Device> = Vec::new();
+                        let model = Rc::new(VecModel::from(empty));
+                        ui.set_devices(model.into());
+                    }
                 });
             }
 
-            let ui_handle_clone = ui_handle.clone();
-            let _ = slint::invoke_from_event_loop(move || {
-                if let Some(ui) = ui_handle_clone.upgrade() {
-                    let model = Rc::new(VecModel::from(ui_devices));
-                    ui.set_devices(model.into());
-                }
-            });
+            was_connected = is_connected;
+            tokio::time::sleep(Duration::from_secs(2)).await;
+        }
+    });
+
+    // 2. Handle Start Daemon
+    ui.on_start_daemon(move || {
+        // Try to spawn shunyad. 
+        // We attempt a few common paths
+        let paths = ["shunyad", "./build/shunyad", "../build/shunyad"];
+        for path in paths {
+            if Command::new(path).spawn().is_ok() {
+                println!("Successfully launched shunyad from {}", path);
+                break;
+            }
         }
     });
 
     let rt_clone2 = rt.clone();
     let ui_handle2 = ui.as_weak();
 
-    // 2. Handle Wipe action
+    // 3. Handle Wipe action
     ui.on_start_wipe(move |device_id, challenge_response| {
         let dev_id = device_id.to_string();
         let response = challenge_response.to_string();
@@ -110,7 +151,7 @@ fn main() -> Result<(), slint::PlatformError> {
         });
     });
     
-    // 3. Handle Challenge Request
+    // 4. Handle Challenge Request
     let rt_clone3 = rt.clone();
     let ui_handle4 = ui.as_weak();
     
