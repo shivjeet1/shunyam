@@ -8,7 +8,8 @@ use std::sync::Arc;
 use std::rc::Rc;
 use slint::{VecModel, Model};
 use std::time::Duration;
-use std::process::Command;
+use std::process::{Command, Stdio};
+use std::fs::File;
 
 fn main() -> Result<(), slint::PlatformError> {
     let ui = MainWindow::new()?;
@@ -22,11 +23,16 @@ fn main() -> Result<(), slint::PlatformError> {
     rt_clone.spawn(async move {
         let mut was_connected = false;
         loop {
-            let connect_result = DeviceServiceClient::connect("http://127.0.0.1:9090").await;
+            // Use timeout to prevent hanging on network stack
+            let connect_future = DeviceServiceClient::connect("http://127.0.0.1:9090");
+            let connect_result = tokio::time::timeout(Duration::from_millis(500), connect_future).await;
+            
+            let is_connected = match connect_result {
+                Ok(Ok(_)) => true,
+                _ => false,
+            };
             
             let ui_handle_clone = ui_handle_poll.clone();
-            let is_connected = connect_result.is_ok();
-            
             let _ = slint::invoke_from_event_loop(move || {
                 if let Some(ui) = ui_handle_clone.upgrade() {
                     ui.set_daemon_connected(is_connected);
@@ -35,34 +41,34 @@ fn main() -> Result<(), slint::PlatformError> {
 
             if is_connected && !was_connected {
                 // Just became connected, fetch devices!
-                let mut client = connect_result.unwrap();
-                if let Ok(response) = client.list_devices(ListDevicesRequest {}).await {
-                    let devices = response.into_inner().devices;
-                    let mut ui_devices = Vec::new();
-                    
-                    for dev in devices {
-                        let capacity_str = format!("{:.1} GB", dev.capacity_bytes as f64 / 1_000_000_000.0);
-                        ui_devices.push(Device {
-                            id: dev.id.into(),
-                            model: dev.model.into(),
-                            capacity: capacity_str.into(),
-                            status: "Ready".into(),
-                            progress: 0.0,
+                if let Ok(Ok(mut client)) = tokio::time::timeout(Duration::from_millis(500), DeviceServiceClient::connect("http://127.0.0.1:9090")).await {
+                    if let Ok(response) = client.list_devices(ListDevicesRequest {}).await {
+                        let devices = response.into_inner().devices;
+                        let mut ui_devices = Vec::new();
+                        
+                        for dev in devices {
+                            let capacity_str = format!("{:.1} GB", dev.capacity_bytes as f64 / 1_000_000_000.0);
+                            ui_devices.push(Device {
+                                id: dev.id.into(),
+                                model: dev.model.into(),
+                                capacity: capacity_str.into(),
+                                status: "Ready".into(),
+                                progress: 0.0,
+                            });
+                        }
+
+                        let ui_handle_clone2 = ui_handle_poll.clone();
+                        let _ = slint::invoke_from_event_loop(move || {
+                            if let Some(ui) = ui_handle_clone2.upgrade() {
+                                let model = Rc::new(VecModel::from(ui_devices));
+                                ui.set_devices(model.into());
+                            }
                         });
                     }
-
-                    let ui_handle_clone2 = ui_handle_poll.clone();
-                    let _ = slint::invoke_from_event_loop(move || {
-                        if let Some(ui) = ui_handle_clone2.upgrade() {
-                            let model = Rc::new(VecModel::from(ui_devices));
-                            ui.set_devices(model.into());
-                        }
-                    });
                 }
             }
             
             if !is_connected {
-                // If it disconnects, clear devices
                 let ui_handle_clone3 = ui_handle_poll.clone();
                 let _ = slint::invoke_from_event_loop(move || {
                     if let Some(ui) = ui_handle_clone3.upgrade() {
@@ -74,26 +80,50 @@ fn main() -> Result<(), slint::PlatformError> {
             }
 
             was_connected = is_connected;
-            tokio::time::sleep(Duration::from_secs(2)).await;
+            tokio::time::sleep(Duration::from_secs(1)).await;
         }
     });
 
     // 2. Handle Start Daemon
+    let ui_handle_daemon = ui.as_weak();
     ui.on_start_daemon(move || {
-        // Try to spawn shunyad. 
-        // We attempt a few common paths
-        let paths = ["shunyad", "./build/shunyad", "../build/shunyad"];
+        let home = std::env::var("HOME").unwrap_or_default();
+        let paths = vec![
+            "shunyad".to_string(),
+            format!("{}/.local/bin/shunyad", home),
+            "/usr/local/bin/shunyad".to_string(),
+            "./build/shunyad".to_string(),
+            "../build/shunyad".to_string(),
+            "../../build/shunyad".to_string(),
+        ];
+        
+        let mut spawned = false;
         for path in paths {
-            if Command::new(path).spawn().is_ok() {
-                println!("Successfully launched shunyad from {}", path);
-                break;
+            if let Ok(file) = File::create("/tmp/shunyad-gui.log") {
+                if let Ok(mut child) = Command::new(&path)
+                    .stdout(Stdio::from(file.try_clone().unwrap()))
+                    .stderr(Stdio::from(file))
+                    .spawn() 
+                {
+                    println!("Successfully launched shunyad from {}", path);
+                    spawned = true;
+                    break;
+                }
+            } else {
+                if Command::new(&path).spawn().is_ok() {
+                    spawned = true;
+                    break;
+                }
             }
+        }
+        
+        if !spawned {
+            println!("Failed to spawn shunyad from any known path.");
         }
     });
 
     let rt_clone2 = rt.clone();
     let ui_handle2 = ui.as_weak();
-
     // 3. Handle Wipe action
     ui.on_start_wipe(move |device_id, challenge_response| {
         let dev_id = device_id.to_string();
@@ -101,12 +131,12 @@ fn main() -> Result<(), slint::PlatformError> {
         let ui_handle3 = ui_handle2.clone();
 
         rt_clone2.spawn(async move {
-            let mut client = match JobServiceClient::connect("http://127.0.0.1:9090").await {
-                Ok(c) => c,
-                Err(e) => {
-                    println!("Failed to connect to JobService: {}", e);
-                    return;
-                }
+            let mut client = match DeviceServiceClient::connect("http://127.0.0.1:9090").await {
+                Ok(_) => match JobServiceClient::connect("http://127.0.0.1:9090").await {
+                    Ok(c) => c,
+                    Err(_) => return,
+                },
+                Err(_) => return,
             };
 
             let req = StartJobRequest {
