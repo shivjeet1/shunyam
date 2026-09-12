@@ -18,6 +18,10 @@ export component MainWindow inherits Window {
     in property <[Device]> devices: [];
     in property <bool> daemon_connected: false;
     
+    // New UI Feedback properties
+    in-out property <string> daemon_status_msg: "";
+    in-out property <bool> daemon_starting: false;
+    
     in-out property <int> selected_device_index: -1;
     in-out property <string> active_challenge: "";
     property <string> challenge_input: "";
@@ -58,8 +62,13 @@ export component MainWindow inherits Window {
                     vertical-alignment: center;
                 }
                 if !root.daemon_connected : Button {
-                    text: "Start Daemon";
-                    clicked => { root.start_daemon(); }
+                    text: root.daemon_starting ? "Starting..." : "Start Daemon";
+                    enabled: !root.daemon_starting;
+                    clicked => { 
+                        root.daemon_starting = true;
+                        root.daemon_status_msg = "Attempting to launch shunyad...";
+                        root.start_daemon(); 
+                    }
                 }
             }
         }
@@ -69,13 +78,20 @@ export component MainWindow inherits Window {
             border-radius: 12px;
             VerticalLayout {
                 alignment: center;
+                spacing: 10px;
                 Text {
                     text: "Cannot connect to Shunya Daemon (127.0.0.1:9090)";
                     color: #aaaaaa;
                     horizontal-alignment: center;
                     font-size: 16px;
                 }
-                Text {
+                if root.daemon_status_msg != "" : Text {
+                    text: root.daemon_status_msg;
+                    color: #ffcc00;
+                    horizontal-alignment: center;
+                    font-size: 14px;
+                }
+                if root.daemon_status_msg == "" : Text {
                     text: "Please start the daemon or click the button above.";
                     color: #888888;
                     horizontal-alignment: center;
@@ -122,7 +138,8 @@ export component MainWindow inherits Window {
                                 border-color: i == root.selected_device_index ? #4a7ab7 : transparent;
 
                                 HorizontalLayout {
-                                    padding: 15px;
+                                    padding-left: 15px;
+                                    padding-right: 15px;
                                     spacing: 15px;
                                     Rectangle {
                                         width: 40px;
@@ -180,7 +197,10 @@ export component MainWindow inherits Window {
                 }
 
                 if root.selected_device_index >= 0 && root.selected_device_index < root.devices.length : VerticalLayout {
-                    padding: 30px;
+                    padding-left: 30px;
+                    padding-right: 30px;
+                    padding-top: 30px;
+                    padding-bottom: 30px;
                     spacing: 20px;
 
                     Text {
@@ -193,7 +213,6 @@ export component MainWindow inherits Window {
                     Rectangle {
                         background: #252525;
                         border-radius: 8px;
-                        padding: 15px;
                         height: 100px;
                         VerticalLayout {
                             spacing: 8px;
@@ -243,9 +262,12 @@ export component MainWindow inherits Window {
                         border-radius: 8px;
                         border-color: #d32f2f;
                         border-width: 1px;
-                        padding: 20px;
-
+                        
                         VerticalLayout {
+                            padding-left: 20px;
+                            padding-right: 20px;
+                            padding-top: 20px;
+                            padding-bottom: 20px;
                             spacing: 15px;
                             Text {
                                 text: "⚠️ Physical Presence Required";

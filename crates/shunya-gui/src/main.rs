@@ -6,7 +6,7 @@ use shunya_proto::v1::{ListDevicesRequest, StartJobRequest, GetChallengeRequest,
 use tokio::runtime::Runtime;
 use std::sync::Arc;
 use std::rc::Rc;
-use slint::{VecModel, Model};
+use slint::{VecModel, Model, SharedString};
 use std::time::Duration;
 use std::process::{Command, Stdio};
 use std::fs::File;
@@ -36,6 +36,10 @@ fn main() -> Result<(), slint::PlatformError> {
             let _ = slint::invoke_from_event_loop(move || {
                 if let Some(ui) = ui_handle_clone.upgrade() {
                     ui.set_daemon_connected(is_connected);
+                    if is_connected {
+                        ui.set_daemon_starting(false);
+                        ui.set_daemon_status_msg("".into());
+                    }
                 }
             });
 
@@ -68,7 +72,7 @@ fn main() -> Result<(), slint::PlatformError> {
                 }
             }
             
-            if !is_connected {
+            if !is_connected && was_connected {
                 let ui_handle_clone3 = ui_handle_poll.clone();
                 let _ = slint::invoke_from_event_loop(move || {
                     if let Some(ui) = ui_handle_clone3.upgrade() {
@@ -98,27 +102,44 @@ fn main() -> Result<(), slint::PlatformError> {
         ];
         
         let mut spawned = false;
+        let mut spawn_path = String::new();
         for path in paths {
             if let Ok(file) = File::create("/tmp/shunyad-gui.log") {
-                if let Ok(mut child) = Command::new(&path)
+                if Command::new(&path)
                     .stdout(Stdio::from(file.try_clone().unwrap()))
                     .stderr(Stdio::from(file))
-                    .spawn() 
+                    .spawn()
+                    .is_ok() 
                 {
-                    println!("Successfully launched shunyad from {}", path);
                     spawned = true;
+                    spawn_path = path;
                     break;
                 }
             } else {
                 if Command::new(&path).spawn().is_ok() {
                     spawned = true;
+                    spawn_path = path;
                     break;
                 }
             }
         }
         
+        let ui_handle_clone = ui_handle_daemon.clone();
         if !spawned {
-            println!("Failed to spawn shunyad from any known path.");
+            let _ = slint::invoke_from_event_loop(move || {
+                if let Some(ui) = ui_handle_clone.upgrade() {
+                    ui.set_daemon_starting(false);
+                    ui.set_daemon_status_msg("Failed to find or spawn shunyad binary.".into());
+                }
+            });
+        } else {
+            let msg = format!("Spawned shunyad from {}", spawn_path);
+            let _ = slint::invoke_from_event_loop(move || {
+                if let Some(ui) = ui_handle_clone.upgrade() {
+                    // Do not reset daemon_starting yet, let the polling loop reset it when connected
+                    ui.set_daemon_status_msg(msg.into());
+                }
+            });
         }
     });
 
