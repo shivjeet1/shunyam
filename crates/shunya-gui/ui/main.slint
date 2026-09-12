@@ -18,7 +18,9 @@ export component MainWindow inherits Window {
     in property <[Device]> devices: [];
     in property <bool> daemon_connected: false;
     
-    // New UI Feedback properties
+    // UI State: "setup", "ready", "active"
+    in-out property <string> ui_state: "setup";
+    
     in-out property <string> daemon_status_msg: "";
     in-out property <bool> daemon_starting: false;
     
@@ -61,29 +63,28 @@ export component MainWindow inherits Window {
                     font-weight: 600;
                     vertical-alignment: center;
                 }
-                if !root.daemon_connected : Button {
-                    text: root.daemon_starting ? "Starting..." : "Start Daemon";
-                    enabled: !root.daemon_starting;
-                    clicked => { 
-                        root.daemon_starting = true;
-                        root.daemon_status_msg = "Attempting to launch shunyad...";
-                        root.start_daemon(); 
-                    }
-                }
             }
         }
 
-        if !root.daemon_connected : Rectangle {
+        // STATE: SETUP (Daemon Offline)
+        if root.ui_state == "setup" : Rectangle {
             background: #1e1e1e;
             border-radius: 12px;
             VerticalLayout {
                 alignment: center;
-                spacing: 10px;
+                spacing: 20px;
                 Text {
-                    text: "Cannot connect to Shunya Daemon (127.0.0.1:9090)";
+                    text: "Shunya Daemon is Offline";
+                    color: #ffffff;
+                    horizontal-alignment: center;
+                    font-size: 20px;
+                    font-weight: 700;
+                }
+                Text {
+                    text: "The core sanitization daemon must be running in the background\nto interface with physical block devices.";
                     color: #aaaaaa;
                     horizontal-alignment: center;
-                    font-size: 16px;
+                    font-size: 14px;
                 }
                 if root.daemon_status_msg != "" : Text {
                     text: root.daemon_status_msg;
@@ -91,16 +92,60 @@ export component MainWindow inherits Window {
                     horizontal-alignment: center;
                     font-size: 14px;
                 }
-                if root.daemon_status_msg == "" : Text {
-                    text: "Please start the daemon or click the button above.";
-                    color: #888888;
-                    horizontal-alignment: center;
-                    font-size: 14px;
+                
+                HorizontalLayout {
+                    alignment: center;
+                    Button {
+                        text: root.daemon_starting ? "Starting Daemon..." : "Start shunyad";
+                        enabled: !root.daemon_starting;
+                        height: 45px;
+                        primary: true;
+                        clicked => { 
+                            root.daemon_starting = true;
+                            root.daemon_status_msg = "Attempting to launch shunyad...";
+                            root.start_daemon(); 
+                        }
+                    }
                 }
             }
         }
 
-        if root.daemon_connected : HorizontalLayout {
+        // STATE: READY (Daemon Online, Waiting for User to enter app)
+        if root.ui_state == "ready" : Rectangle {
+            background: #1e1e1e;
+            border-radius: 12px;
+            VerticalLayout {
+                alignment: center;
+                spacing: 20px;
+                
+                Text {
+                    text: "✅ Daemon Connected";
+                    color: #4CAF50;
+                    horizontal-alignment: center;
+                    font-size: 24px;
+                    font-weight: 700;
+                }
+                Text {
+                    text: "Secure connection established to 127.0.0.1:9090.\nStorage hardware probed successfully.";
+                    color: #aaaaaa;
+                    horizontal-alignment: center;
+                    font-size: 15px;
+                }
+                
+                HorizontalLayout {
+                    alignment: center;
+                    Button {
+                        text: "Launch Application";
+                        primary: true;
+                        height: 45px;
+                        clicked => { root.ui_state = "active"; }
+                    }
+                }
+            }
+        }
+
+        // STATE: ACTIVE (Main Application GUI)
+        if root.ui_state == "active" : HorizontalLayout {
             spacing: 25px;
             
             // Left Pane: Disks Grid

@@ -66,6 +66,8 @@ fn main() -> Result<(), slint::PlatformError> {
                             if let Some(ui) = ui_handle_clone2.upgrade() {
                                 let model = Rc::new(VecModel::from(ui_devices));
                                 ui.set_devices(model.into());
+                                // Do not jump straight to active; go to "ready" confirmation screen
+                                ui.set_ui_state("ready".into());
                             }
                         });
                     }
@@ -79,6 +81,8 @@ fn main() -> Result<(), slint::PlatformError> {
                         let empty: Vec<Device> = Vec::new();
                         let model = Rc::new(VecModel::from(empty));
                         ui.set_devices(model.into());
+                        // Forcibly revert to setup screen if daemon crashes
+                        ui.set_ui_state("setup".into());
                     }
                 });
             }
