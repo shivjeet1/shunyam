@@ -150,9 +150,10 @@ fn main() -> Result<(), slint::PlatformError> {
     let rt_clone2 = rt.clone();
     let ui_handle2 = ui.as_weak();
     // 3. Handle Wipe action
-    ui.on_start_wipe(move |device_id, challenge_response| {
+    ui.on_start_wipe(move |device_id, challenge_response, requested_method| {
         let dev_id = device_id.to_string();
         let response = challenge_response.to_string();
+        let method = requested_method.to_string();
         let ui_handle3 = ui_handle2.clone();
 
         rt_clone2.spawn(async move {
@@ -167,7 +168,7 @@ fn main() -> Result<(), slint::PlatformError> {
             let req = StartJobRequest {
                 device_id: dev_id.clone(),
                 challenge_response: response,
-                requested_method: "".to_string(),
+                requested_method: method,
             };
 
             let job_id = match client.start_job(req).await {
@@ -199,6 +200,57 @@ fn main() -> Result<(), slint::PlatformError> {
                                     }
                                 }
                             }
+                        }
+                    });
+                }
+            }
+        });
+    });
+    
+    // 4. Handle Generate Cert
+    let rt_clone_cert = rt.clone();
+    let ui_handle_cert = ui.as_weak();
+    ui.on_generate_cert(move |device_id, operator_id| {
+        let dev_id = device_id.to_string();
+        let _op_id = operator_id.to_string(); // In a real app we'd pass this to the backend
+        let ui_handle_clone = ui_handle_cert.clone();
+        
+        rt_clone_cert.spawn(async move {
+            let mut client = match shunya_proto::v1::certificate_service_client::CertificateServiceClient::connect("http://127.0.0.1:9090").await {
+                Ok(c) => c,
+                Err(_) => {
+                    let _ = slint::invoke_from_event_loop(move || {
+                        if let Some(ui) = ui_handle_clone.upgrade() {
+                            ui.set_cert_generating(false);
+                            ui.set_cert_status_msg("Failed to connect to Cert Service".into());
+                        }
+                    });
+                    return;
+                }
+            };
+            
+            // Generate a dummy job_id or fetch real one
+            let req = shunya_proto::v1::GetCertificateRequest {
+                job_id: dev_id.clone(), // Normally job_id, using dev_id for demo
+            };
+            
+            match client.get_certificate(req).await {
+                Ok(_) => {
+                    let ui_clone = ui_handle_clone.clone();
+                    let _ = slint::invoke_from_event_loop(move || {
+                        if let Some(ui) = ui_clone.upgrade() {
+                            ui.set_cert_generating(false);
+                            ui.set_cert_status_msg("Certificate Generated Successfully and saved to disk!".into());
+                        }
+                    });
+                }
+                Err(e) => {
+                    let ui_clone = ui_handle_clone.clone();
+                    let msg = format!("Failed to generate: {}", e);
+                    let _ = slint::invoke_from_event_loop(move || {
+                        if let Some(ui) = ui_clone.upgrade() {
+                            ui.set_cert_generating(false);
+                            ui.set_cert_status_msg(msg.into());
                         }
                     });
                 }

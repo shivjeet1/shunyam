@@ -1,4 +1,4 @@
-import { LineEdit, Button, ScrollView, ProgressIndicator } from "std-widgets.slint";
+import { LineEdit, Button, ScrollView, ProgressIndicator, ComboBox } from "std-widgets.slint";
 
 export struct Device {
     id: string,
@@ -27,10 +27,19 @@ export component MainWindow inherits Window {
     in-out property <int> selected_device_index: -1;
     in-out property <string> active_challenge: "";
     property <string> challenge_input: "";
+    
+    // Wipe Configuration
+    property <string> selected_method: "NIST 800-88 Purge (ChaCha20 O_DIRECT)";
+    
+    // Certification State
+    in-out property <bool> cert_generating: false;
+    in-out property <string> cert_status_msg: "";
+    property <string> operator_id: "";
 
-    callback start_wipe(string, string);
+    callback start_wipe(string, string, string);
     callback request_challenge(string);
     callback start_daemon();
+    callback generate_cert(string, string);
 
     VerticalLayout {
         padding: 30px;
@@ -110,7 +119,7 @@ export component MainWindow inherits Window {
             }
         }
 
-        // STATE: READY (Daemon Online, Waiting for User to enter app)
+        // STATE: READY
         if root.ui_state == "ready" : Rectangle {
             background: #1e1e1e;
             border-radius: 12px;
@@ -144,7 +153,7 @@ export component MainWindow inherits Window {
             }
         }
 
-        // STATE: ACTIVE (Main Application GUI)
+        // STATE: ACTIVE
         if root.ui_state == "active" : HorizontalLayout {
             spacing: 25px;
             
@@ -217,6 +226,7 @@ export component MainWindow inherits Window {
                                         root.selected_device_index = i; 
                                         root.active_challenge = "";
                                         root.challenge_input = "";
+                                        root.cert_status_msg = "";
                                     }
                                 }
                             }
@@ -241,108 +251,187 @@ export component MainWindow inherits Window {
                     }
                 }
 
-                if root.selected_device_index >= 0 && root.selected_device_index < root.devices.length : VerticalLayout {
-                    padding-left: 30px;
-                    padding-right: 30px;
-                    padding-top: 30px;
-                    padding-bottom: 30px;
-                    spacing: 20px;
+                if root.selected_device_index >= 0 && root.selected_device_index < root.devices.length : ScrollView {
+                    VerticalLayout {
+                        padding-left: 30px;
+                        padding-right: 30px;
+                        padding-top: 30px;
+                        padding-bottom: 30px;
+                        spacing: 20px;
 
-                    Text {
-                        text: "Sanitization Setup";
-                        color: #ffffff;
-                        font-size: 20px;
-                        font-weight: 700;
-                    }
-
-                    Rectangle {
-                        background: #252525;
-                        border-radius: 8px;
-                        height: 100px;
-                        VerticalLayout {
-                            spacing: 8px;
-                            alignment: center;
-                            padding-left: 15px;
-                            padding-right: 15px;
-                            Text {
-                                text: "Target: " + root.devices[root.selected_device_index].model;
-                                color: #dddddd;
-                                font-size: 16px;
-                            }
-                            Text {
-                                text: "Block Device: " + root.devices[root.selected_device_index].id;
-                                color: #888888;
-                            }
-                        }
-                    }
-
-                    HorizontalLayout {
-                        spacing: 15px;
-                        Text { text: "Status:"; color: #aaaaaa; }
                         Text {
-                            text: root.devices[root.selected_device_index].status;
-                            color: root.devices[root.selected_device_index].progress == 100.0 ? #4CAF50 : #ff9800;
-                            font-weight: 600;
+                            text: "Sanitization Setup";
+                            color: #ffffff;
+                            font-size: 20px;
+                            font-weight: 700;
                         }
-                    }
-                    
-                    ProgressIndicator {
-                        progress: root.devices[root.selected_device_index].progress / 100.0;
-                        height: 12px;
-                    }
 
-                    Rectangle { vertical-stretch: 1; }
-                    
-                    if root.active_challenge == "" : Button {
-                        text: "AUTHORIZE SECURE WIPE";
-                        primary: true;
-                        height: 45px;
-                        clicked => { 
-                            root.request_challenge(root.devices[root.selected_device_index].id); 
+                        Rectangle {
+                            background: #252525;
+                            border-radius: 8px;
+                            height: 80px;
+                            VerticalLayout {
+                                spacing: 8px;
+                                alignment: center;
+                                padding-left: 15px;
+                                padding-right: 15px;
+                                Text {
+                                    text: "Target: " + root.devices[root.selected_device_index].model;
+                                    color: #dddddd;
+                                    font-size: 16px;
+                                }
+                                Text {
+                                    text: "Block Device: " + root.devices[root.selected_device_index].id;
+                                    color: #888888;
+                                }
+                            }
                         }
-                    }
 
-                    if root.active_challenge != "" : Rectangle {
-                        background: #2a1515;
-                        border-radius: 8px;
-                        border-color: #d32f2f;
-                        border-width: 1px;
-                        
-                        VerticalLayout {
-                            padding-left: 20px;
-                            padding-right: 20px;
-                            padding-top: 20px;
-                            padding-bottom: 20px;
+                        // Config / Status depending on progress
+                        if root.devices[root.selected_device_index].progress == 0.0 : VerticalLayout {
                             spacing: 15px;
+                            Text { text: "Wipe Method:"; color: #aaaaaa; }
+                            ComboBox {
+                                model: ["NIST 800-88 Purge (ChaCha20 O_DIRECT)", "NIST 800-88 Clear (Single Pass Zero)", "DoD 5220.22-M"];
+                                current-value <=> root.selected_method;
+                            }
+                        }
+
+                        HorizontalLayout {
+                            spacing: 15px;
+                            Text { text: "Status:"; color: #aaaaaa; }
                             Text {
-                                text: "⚠️ Physical Presence Required";
-                                color: #ff5252;
-                                font-weight: 700;
-                                font-size: 16px;
+                                text: root.devices[root.selected_device_index].status;
+                                color: root.devices[root.selected_device_index].progress == 100.0 ? #4CAF50 : #ff9800;
+                                font-weight: 600;
                             }
-                            Text {
-                                text: "Type the exact challenge code to execute destructive wipe:";
-                                color: #dddddd;
-                                font-size: 14px;
+                        }
+                        
+                        ProgressIndicator {
+                            progress: root.devices[root.selected_device_index].progress / 100.0;
+                            height: 12px;
+                        }
+
+                        if root.devices[root.selected_device_index].progress > 0.0 && root.devices[root.selected_device_index].progress < 100.0 && root.devices[root.selected_device_index].status == "Verifying" : Rectangle {
+                            background: #294060;
+                            border-radius: 8px;
+                            padding: 15px;
+                            VerticalLayout {
+                                spacing: 10px;
+                                Text {
+                                    text: "🔍 Deep Carving Audit";
+                                    color: #80c0ff;
+                                    font-weight: 700;
+                                }
+                                Text {
+                                    text: "Hunting for structural PNG/JPEG anomalies...";
+                                    color: #dddddd;
+                                }
                             }
-                            Text {
-                                text: root.active_challenge;
-                                color: #ffffff;
-                                font-size: 24px;
-                                font-weight: 800;
-                                horizontal-alignment: center;
+                        }
+
+                        // Certification Phase
+                        if root.devices[root.selected_device_index].progress == 100.0 : Rectangle {
+                            background: #253325;
+                            border-radius: 8px;
+                            padding: 20px;
+                            border-width: 1px;
+                            border-color: #4CAF50;
+                            VerticalLayout {
+                                spacing: 15px;
+                                Text {
+                                    text: "✅ Wipe Verification Passed";
+                                    color: #4CAF50;
+                                    font-size: 18px;
+                                    font-weight: 700;
+                                }
+                                Text {
+                                    text: "Carving Score: 0 Surviving Files Detected";
+                                    color: #dddddd;
+                                }
+                                HorizontalLayout {
+                                    spacing: 10px;
+                                    Text {
+                                        text: "Operator ID:";
+                                        color: #aaaaaa;
+                                        vertical-alignment: center;
+                                    }
+                                    LineEdit {
+                                        placeholder-text: "Admin / OP-ID";
+                                        text <=> root.operator_id;
+                                    }
+                                }
+                                Button {
+                                    text: root.cert_generating ? "Signing via SmartCard..." : "Generate Compliance Certificate";
+                                    primary: true;
+                                    enabled: !root.cert_generating;
+                                    clicked => { 
+                                        root.cert_generating = true;
+                                        root.generate_cert(root.devices[root.selected_device_index].id, root.operator_id);
+                                    }
+                                }
+                                if root.cert_status_msg != "" : Text {
+                                    text: root.cert_status_msg;
+                                    color: #80c0ff;
+                                }
                             }
-                            LineEdit {
-                                placeholder-text: "Enter code...";
-                                text <=> root.challenge_input;
-                            }
+                        }
+                        
+                        if root.devices[root.selected_device_index].progress == 0.0 : VerticalLayout {
+                            Rectangle { height: 20px; } // spacer
                             
-                            Button {
-                                text: "EXECUTE WIPE";
+                            if root.active_challenge == "" : Button {
+                                text: "AUTHORIZE SECURE WIPE";
                                 primary: true;
-                                enabled: root.challenge_input == root.active_challenge;
+                                height: 45px;
                                 clicked => { 
-                                    root.start_wipe(root.devices[root.selected_device_index].id, root.challenge_input); 
+                                    root.request_challenge(root.devices[root.selected_device_index].id); 
+                                }
+                            }
+
+                            if root.active_challenge != "" : Rectangle {
+                                background: #2a1515;
+                                border-radius: 8px;
+                                border-color: #d32f2f;
+                                border-width: 1px;
+                                
+                                VerticalLayout {
+                                    padding-left: 20px;
+                                    padding-right: 20px;
+                                    padding-top: 20px;
+                                    padding-bottom: 20px;
+                                    spacing: 15px;
+                                    Text {
+                                        text: "⚠️ Physical Presence Required";
+                                        color: #ff5252;
+                                        font-weight: 700;
+                                        font-size: 16px;
+                                    }
+                                    Text {
+                                        text: "Type the exact challenge code to execute destructive wipe:";
+                                        color: #dddddd;
+                                        font-size: 14px;
+                                    }
+                                    Text {
+                                        text: root.active_challenge;
+                                        color: #ffffff;
+                                        font-size: 24px;
+                                        font-weight: 800;
+                                        horizontal-alignment: center;
+                                    }
+                                    LineEdit {
+                                        placeholder-text: "Enter code...";
+                                        text <=> root.challenge_input;
+                                    }
+                                    
+                                    Button {
+                                        text: "EXECUTE WIPE";
+                                        primary: true;
+                                        enabled: root.challenge_input == root.active_challenge;
+                                        clicked => { 
+                                            root.start_wipe(root.devices[root.selected_device_index].id, root.challenge_input, root.selected_method); 
+                                        }
+                                    }
                                 }
                             }
                         }
