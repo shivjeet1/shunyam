@@ -6,224 +6,193 @@ export struct Device {
     capacity: string,
     status: string,
     progress: float,
+    // phase: "idle" | "wiping" | "verifying" | "done"
+    phase: string,
+    job_id: string,
 }
 
 export component MainWindow inherits Window {
     title: "Shunya Secure Wipe";
-    width: 900px;
-    height: 650px;
+    width: 920px;
+    height: 680px;
     background: #121212;
     default-font-family: "Inter, sans-serif";
 
     in property <[Device]> devices: [];
     in property <bool> daemon_connected: false;
-    
-    // UI State: "setup", "ready", "active"
+
+    // UI State: "setup" | "ready" | "active"
     in-out property <string> ui_state: "setup";
-    
     in-out property <string> daemon_status_msg: "";
-    in-out property <bool> daemon_starting: false;
-    
-    in-out property <int> selected_device_index: -1;
+    in-out property <bool>   daemon_starting: false;
+
+    in-out property <int>    selected_device_index: -1;
     in-out property <string> active_challenge: "";
-    property <string> challenge_input: "";
-    
-    // Wipe Configuration
-    property <string> selected_method: "NIST 800-88 Purge (ChaCha20 O_DIRECT)";
-    
-    // Certification State
-    in-out property <bool> cert_generating: false;
+    property  <string>       challenge_input: "";
+    property  <string>       selected_method: "NIST 800-88 Purge (ChaCha20 O_DIRECT)";
+
+    // Cert panel state
+    in-out property <bool>   cert_generating: false;
     in-out property <string> cert_status_msg: "";
-    property <string> operator_id: "";
+    property  <string>       operator_id: "";
 
-    callback start_wipe(string, string, string);
-    callback request_challenge(string);
     callback start_daemon();
-    callback generate_cert(string, string);
+    callback request_challenge(string);
+    callback start_wipe(string, string, string);  // (device_id, challenge, method)
+    callback generate_cert(string, string);       // (job_id, operator_id)
 
+    // ─── Root layout ──────────────────────────────────────────────────────────
     VerticalLayout {
-        padding: 30px;
-        spacing: 25px;
+        padding: 28px;
+        spacing: 22px;
 
-        // Header
+        // Header bar
         HorizontalLayout {
             alignment: space-between;
             Text {
                 text: "Shunya Secure Wipe";
-                font-size: 28px;
-                font-weight: 800;
-                color: #ffffff;
+                font-size: 26px; font-weight: 800; color: #ffffff;
                 vertical-alignment: center;
             }
-            
             HorizontalLayout {
-                spacing: 15px;
-                alignment: end;
+                spacing: 12px; alignment: end;
                 Rectangle {
-                    width: 12px;
-                    height: 12px;
-                    border-radius: 6px;
+                    width: 10px; height: 10px; border-radius: 5px;
                     background: root.daemon_connected ? #4CAF50 : #F44336;
                 }
                 Text {
                     text: root.daemon_connected ? "Daemon Online" : "Daemon Offline";
                     color: root.daemon_connected ? #4CAF50 : #F44336;
-                    font-size: 14px;
-                    font-weight: 600;
-                    vertical-alignment: center;
+                    font-size: 13px; font-weight: 600; vertical-alignment: center;
                 }
             }
         }
 
-        // STATE: SETUP (Daemon Offline)
+        // ── STATE: SETUP ────────────────────────────────────────────────────
         if root.ui_state == "setup" : Rectangle {
-            background: #1e1e1e;
-            border-radius: 12px;
+            background: #1a1a2e; border-radius: 14px;
             VerticalLayout {
-                alignment: center;
-                spacing: 20px;
+                alignment: center; spacing: 22px;
                 Text {
-                    text: "Shunya Daemon is Offline";
-                    color: #ffffff;
+                    text: "🔒  Shunya Daemon Offline";
+                    color: #ffffff; font-size: 22px; font-weight: 700;
                     horizontal-alignment: center;
-                    font-size: 20px;
-                    font-weight: 700;
                 }
                 Text {
-                    text: "The core sanitization daemon must be running in the background\nto interface with physical block devices.";
-                    color: #aaaaaa;
+                    text: "The privileged sanitisation daemon must be running to\naccess block devices and issue wipe commands.";
+                    color: #aaaaaa; font-size: 14px;
                     horizontal-alignment: center;
-                    font-size: 14px;
                 }
                 if root.daemon_status_msg != "" : Text {
                     text: root.daemon_status_msg;
-                    color: #ffcc00;
+                    color: #ffcc00; font-size: 13px;
                     horizontal-alignment: center;
-                    font-size: 14px;
                 }
-                
                 HorizontalLayout {
                     alignment: center;
                     Button {
-                        text: root.daemon_starting ? "Starting Daemon..." : "Start shunyad";
+                        text: root.daemon_starting ? "Starting…" : "▶  Start shunyad";
                         enabled: !root.daemon_starting;
-                        height: 45px;
-                        primary: true;
-                        clicked => { 
+                        primary: true; height: 44px;
+                        clicked => {
                             root.daemon_starting = true;
-                            root.daemon_status_msg = "Attempting to launch shunyad...";
-                            root.start_daemon(); 
+                            root.daemon_status_msg = "Launching shunyad — polling 127.0.0.1:9090…";
+                            root.start_daemon();
                         }
                     }
                 }
             }
         }
 
-        // STATE: READY
+        // ── STATE: READY ─────────────────────────────────────────────────────
         if root.ui_state == "ready" : Rectangle {
-            background: #1e1e1e;
-            border-radius: 12px;
+            background: #0d2818; border-radius: 14px;
+            border-width: 1px; border-color: #4CAF50;
             VerticalLayout {
-                alignment: center;
-                spacing: 20px;
-                
+                alignment: center; spacing: 18px;
                 Text {
-                    text: "✅ Daemon Connected";
-                    color: #4CAF50;
+                    text: "✅  Daemon Connected";
+                    color: #4CAF50; font-size: 22px; font-weight: 700;
                     horizontal-alignment: center;
-                    font-size: 24px;
-                    font-weight: 700;
                 }
                 Text {
-                    text: "Secure connection established to 127.0.0.1:9090.\nStorage hardware probed successfully.";
-                    color: #aaaaaa;
+                    text: "Secure gRPC connection established to 127.0.0.1:9090.\nStorage devices have been enumerated.";
+                    color: #aaaaaa; font-size: 14px;
                     horizontal-alignment: center;
-                    font-size: 15px;
                 }
-                
                 HorizontalLayout {
                     alignment: center;
                     Button {
-                        text: "Launch Application";
-                        primary: true;
-                        height: 45px;
+                        text: "Launch Application  →";
+                        primary: true; height: 44px;
                         clicked => { root.ui_state = "active"; }
                     }
                 }
             }
         }
 
-        // STATE: ACTIVE
+        // ── STATE: ACTIVE ─────────────────────────────────────────────────────
         if root.ui_state == "active" : HorizontalLayout {
-            spacing: 25px;
-            
-            // Left Pane: Disks Grid
-            Rectangle {
-                width: parent.width * 0.45;
-                background: #1e1e1e;
-                border-radius: 12px;
-                border-width: 1px;
-                border-color: #333333;
-                
-                VerticalLayout {
-                    padding: 20px;
-                    spacing: 15px;
-                    
-                    Text {
-                        text: "Target Storage Devices";
-                        color: #ffffff;
-                        font-size: 18px;
-                        font-weight: 700;
-                    }
-                    
-                    if root.devices.length == 0 : Text {
-                        text: "No devices found.";
-                        color: #777777;
-                    }
+            spacing: 22px;
 
+            // ── Left pane: device list ───────────────────────────────────────
+            Rectangle {
+                width: parent.width * 0.40;
+                background: #1a1a1a; border-radius: 12px;
+                border-width: 1px; border-color: #2a2a2a;
+
+                VerticalLayout {
+                    padding: 18px; spacing: 14px;
+                    Text {
+                        text: "Storage Devices";
+                        color: #ffffff; font-size: 17px; font-weight: 700;
+                    }
+                    if root.devices.length == 0 : Text {
+                        text: "No devices enumerated.";
+                        color: #555555; font-size: 13px;
+                    }
                     ScrollView {
                         VerticalLayout {
                             spacing: 8px;
                             for device[i] in root.devices : Rectangle {
-                                height: 75px;
-                                background: i == root.selected_device_index ? #294060 : #252525;
+                                height: 72px;
+                                background: i == root.selected_device_index ? #1a3050 : #222222;
                                 border-radius: 8px;
                                 border-width: 1px;
-                                border-color: i == root.selected_device_index ? #4a7ab7 : transparent;
-
+                                border-color: i == root.selected_device_index ? #3a7ab7 : transparent;
                                 HorizontalLayout {
-                                    padding-left: 15px;
-                                    padding-right: 15px;
-                                    spacing: 15px;
+                                    padding-left: 14px; padding-right: 14px; spacing: 12px;
                                     Rectangle {
-                                        width: 40px;
-                                        background: #333333;
-                                        border-radius: 8px;
+                                        width: 36px; background: #333; border-radius: 6px;
                                         Text {
                                             text: "💾";
                                             horizontal-alignment: center;
                                             vertical-alignment: center;
-                                            font-size: 20px;
+                                            font-size: 18px;
                                         }
                                     }
                                     VerticalLayout {
                                         alignment: center;
                                         Text {
                                             text: device.model;
-                                            color: #ffffff;
-                                            font-weight: 600;
-                                            font-size: 15px;
+                                            color: #eeeeee; font-weight: 600; font-size: 14px;
                                         }
                                         Text {
-                                            text: device.id + " • " + device.capacity;
-                                            color: #999999;
-                                            font-size: 12px;
+                                            text: device.id + "  •  " + device.capacity;
+                                            color: #888888; font-size: 11px;
                                         }
+                                    }
+                                    // Status dot
+                                    Rectangle {
+                                        width: 8px; height: 8px; border-radius: 4px;
+                                        background: device.phase == "done" ? #4CAF50
+                                                  : device.phase == "wiping" || device.phase == "verifying" ? #ff9800
+                                                  : #555555;
                                     }
                                 }
                                 TouchArea {
-                                    clicked => { 
-                                        root.selected_device_index = i; 
+                                    clicked => {
+                                        root.selected_device_index = i;
                                         root.active_challenge = "";
                                         root.challenge_input = "";
                                         root.cert_status_msg = "";
@@ -235,201 +204,197 @@ export component MainWindow inherits Window {
                 }
             }
 
-            // Right Pane: Details & Wipe Control
+            // ── Right pane: detail / control ─────────────────────────────────
             Rectangle {
-                background: #1e1e1e;
-                border-radius: 12px;
-                border-width: 1px;
-                border-color: #333333;
+                background: #1a1a1a; border-radius: 12px;
+                border-width: 1px; border-color: #2a2a2a;
 
+                // No device selected
                 if root.selected_device_index < 0 || root.selected_device_index >= root.devices.length : VerticalLayout {
                     alignment: center;
                     Text {
-                        text: "Select a device from the left panel";
-                        color: #666666;
-                        horizontal-alignment: center;
+                        text: "← Select a device to begin";
+                        color: #444444; horizontal-alignment: center;
                     }
                 }
 
+                // Device selected
                 if root.selected_device_index >= 0 && root.selected_device_index < root.devices.length : ScrollView {
                     VerticalLayout {
-                        padding-left: 30px;
-                        padding-right: 30px;
-                        padding-top: 30px;
-                        padding-bottom: 30px;
-                        spacing: 20px;
+                        padding-left: 28px; padding-right: 28px;
+                        padding-top: 26px;  padding-bottom: 26px;
+                        spacing: 18px;
 
-                        Text {
-                            text: "Sanitization Setup";
-                            color: #ffffff;
-                            font-size: 20px;
-                            font-weight: 700;
-                        }
-
+                        // ── Device info card ───────────────────────────────
                         Rectangle {
-                            background: #252525;
-                            border-radius: 8px;
-                            height: 80px;
-                            VerticalLayout {
-                                spacing: 8px;
-                                alignment: center;
-                                padding-left: 15px;
-                                padding-right: 15px;
-                                Text {
-                                    text: "Target: " + root.devices[root.selected_device_index].model;
-                                    color: #dddddd;
-                                    font-size: 16px;
-                                }
-                                Text {
-                                    text: "Block Device: " + root.devices[root.selected_device_index].id;
-                                    color: #888888;
+                            background: #232323; border-radius: 8px; height: 82px;
+                            HorizontalLayout {
+                                padding-left: 16px; padding-right: 16px; alignment: start;
+                                VerticalLayout {
+                                    alignment: center; spacing: 6px;
+                                    Text {
+                                        text: root.devices[root.selected_device_index].model;
+                                        color: #ffffff; font-size: 16px; font-weight: 700;
+                                    }
+                                    Text {
+                                        text: root.devices[root.selected_device_index].id
+                                            + "  •  "
+                                            + root.devices[root.selected_device_index].capacity;
+                                        color: #888888; font-size: 12px;
+                                    }
                                 }
                             }
                         }
 
-                        // Config / Status depending on progress
-                        if root.devices[root.selected_device_index].progress == 0.0 : VerticalLayout {
-                            spacing: 15px;
-                            Text { text: "Wipe Method:"; color: #aaaaaa; }
+                        // ── Wipe method selector (only before wipe starts) ─
+                        if root.devices[root.selected_device_index].phase == "idle" : VerticalLayout {
+                            spacing: 8px;
+                            Text { text: "Wipe Standard:"; color: #aaaaaa; font-size: 13px; }
                             ComboBox {
-                                model: ["NIST 800-88 Purge (ChaCha20 O_DIRECT)", "NIST 800-88 Clear (Single Pass Zero)", "DoD 5220.22-M"];
+                                model: [
+                                    "NIST 800-88 Purge (ChaCha20 O_DIRECT)",
+                                    "NIST 800-88 Clear (Single Pass Zero)",
+                                    "DoD 5220.22-M (3-Pass)"
+                                ];
                                 current-value <=> root.selected_method;
                             }
                         }
 
-                        HorizontalLayout {
-                            spacing: 15px;
-                            Text { text: "Status:"; color: #aaaaaa; }
-                            Text {
-                                text: root.devices[root.selected_device_index].status;
-                                color: root.devices[root.selected_device_index].progress == 100.0 ? #4CAF50 : #ff9800;
-                                font-weight: 600;
+                        // ── Progress bar (always visible when phase != idle) ─
+                        if root.devices[root.selected_device_index].phase != "idle" : VerticalLayout {
+                            spacing: 8px;
+                            HorizontalLayout {
+                                Text { text: root.devices[root.selected_device_index].status; color: #dddddd; font-size: 14px; }
+                                Rectangle { horizontal-stretch: 1; }
+                                Text {
+                                    text: round(root.devices[root.selected_device_index].progress) + "%";
+                                    color: #aaaaaa; font-size: 13px;
+                                }
+                            }
+                            ProgressIndicator {
+                                progress: root.devices[root.selected_device_index].progress / 100.0;
+                                height: 10px;
                             }
                         }
-                        
-                        ProgressIndicator {
-                            progress: root.devices[root.selected_device_index].progress / 100.0;
-                            height: 12px;
-                        }
 
-                        if root.devices[root.selected_device_index].progress > 0.0 && root.devices[root.selected_device_index].progress < 100.0 && root.devices[root.selected_device_index].status == "Verifying" : Rectangle {
-                            background: #294060;
-                            border-radius: 8px;
-                            padding: 15px;
+                        // ── Carving audit panel (Verifying phase) ──────────
+                        if root.devices[root.selected_device_index].phase == "verifying" : Rectangle {
+                            background: #0d1f35; border-radius: 8px;
+                            border-width: 1px; border-color: #1a4a80;
                             VerticalLayout {
+                                padding-left: 16px; padding-right: 16px;
+                                padding-top: 14px;  padding-bottom: 14px;
                                 spacing: 10px;
                                 Text {
-                                    text: "🔍 Deep Carving Audit";
-                                    color: #80c0ff;
-                                    font-weight: 700;
+                                    text: "🔍  Deep Carving Audit — shunya-carve";
+                                    color: #80c0ff; font-weight: 700; font-size: 14px;
                                 }
                                 Text {
-                                    text: "Hunting for structural PNG/JPEG anomalies...";
-                                    color: #dddddd;
+                                    text: "Scanning wiped sectors for surviving JPEG/PNG structural boundaries…";
+                                    color: #aaaacc; font-size: 13px;
                                 }
                             }
                         }
 
-                        // Certification Phase
-                        if root.devices[root.selected_device_index].progress == 100.0 : Rectangle {
-                            background: #253325;
-                            border-radius: 8px;
-                            padding: 20px;
-                            border-width: 1px;
-                            border-color: #4CAF50;
+                        // ── Certificate panel (done phase) ──────────────────
+                        if root.devices[root.selected_device_index].phase == "done" : Rectangle {
+                            background: #0d250d; border-radius: 10px;
+                            border-width: 1px; border-color: #4CAF50;
                             VerticalLayout {
-                                spacing: 15px;
+                                padding-left: 20px; padding-right: 20px;
+                                padding-top: 18px;  padding-bottom: 18px;
+                                spacing: 14px;
+
                                 Text {
-                                    text: "✅ Wipe Verification Passed";
-                                    color: #4CAF50;
-                                    font-size: 18px;
-                                    font-weight: 700;
+                                    text: "✅  Wipe Verified — Carving Score: 0 anomalies";
+                                    color: #4CAF50; font-size: 16px; font-weight: 700;
                                 }
                                 Text {
-                                    text: "Carving Score: 0 Surviving Files Detected";
-                                    color: #dddddd;
+                                    text: "No recoverable file structures detected.\nSmartCard signature will be embedded in the PDF.";
+                                    color: #aaaaaa; font-size: 13px;
                                 }
+
                                 HorizontalLayout {
-                                    spacing: 10px;
+                                    spacing: 12px;
                                     Text {
                                         text: "Operator ID:";
-                                        color: #aaaaaa;
+                                        color: #aaaaaa; font-size: 13px;
                                         vertical-alignment: center;
+                                        width: 90px;
                                     }
                                     LineEdit {
-                                        placeholder-text: "Admin / OP-ID";
+                                        placeholder-text: "e.g. ADMIN-001";
                                         text <=> root.operator_id;
                                     }
                                 }
+
                                 Button {
-                                    text: root.cert_generating ? "Signing via SmartCard..." : "Generate Compliance Certificate";
+                                    text: root.cert_generating
+                                        ? "Signing via SmartCard (shunya-cert)…"
+                                        : "🔏  Generate Compliance Certificate";
                                     primary: true;
-                                    enabled: !root.cert_generating;
-                                    clicked => { 
+                                    enabled: !root.cert_generating && root.operator_id != "";
+                                    clicked => {
                                         root.cert_generating = true;
-                                        root.generate_cert(root.devices[root.selected_device_index].id, root.operator_id);
+                                        root.generate_cert(
+                                            root.devices[root.selected_device_index].job_id,
+                                            root.operator_id
+                                        );
                                     }
                                 }
                                 if root.cert_status_msg != "" : Text {
                                     text: root.cert_status_msg;
-                                    color: #80c0ff;
+                                    color: #80d080; font-size: 13px;
                                 }
                             }
                         }
-                        
-                        if root.devices[root.selected_device_index].progress == 0.0 : VerticalLayout {
-                            Rectangle { height: 20px; } // spacer
-                            
+
+                        // ── Auth / challenge section (idle phase only) ──────
+                        if root.devices[root.selected_device_index].phase == "idle" : VerticalLayout {
+                            spacing: 12px;
+
                             if root.active_challenge == "" : Button {
-                                text: "AUTHORIZE SECURE WIPE";
-                                primary: true;
-                                height: 45px;
-                                clicked => { 
-                                    root.request_challenge(root.devices[root.selected_device_index].id); 
+                                text: "🔐  Authorize Secure Wipe";
+                                primary: true; height: 44px;
+                                clicked => {
+                                    root.request_challenge(root.devices[root.selected_device_index].id);
                                 }
                             }
 
                             if root.active_challenge != "" : Rectangle {
-                                background: #2a1515;
-                                border-radius: 8px;
-                                border-color: #d32f2f;
-                                border-width: 1px;
-                                
+                                background: #200808; border-radius: 10px;
+                                border-width: 1px; border-color: #c62828;
                                 VerticalLayout {
-                                    padding-left: 20px;
-                                    padding-right: 20px;
-                                    padding-top: 20px;
-                                    padding-bottom: 20px;
-                                    spacing: 15px;
+                                    padding-left: 20px; padding-right: 20px;
+                                    padding-top: 18px;  padding-bottom: 18px;
+                                    spacing: 14px;
                                     Text {
-                                        text: "⚠️ Physical Presence Required";
-                                        color: #ff5252;
-                                        font-weight: 700;
-                                        font-size: 16px;
+                                        text: "⚠  Physical Presence Required";
+                                        color: #ff5252; font-size: 16px; font-weight: 700;
                                     }
                                     Text {
-                                        text: "Type the exact challenge code to execute destructive wipe:";
-                                        color: #dddddd;
-                                        font-size: 14px;
+                                        text: "Type the one-time challenge code exactly to authorise the destructive wipe:";
+                                        color: #dddddd; font-size: 13px;
                                     }
                                     Text {
                                         text: root.active_challenge;
-                                        color: #ffffff;
-                                        font-size: 24px;
-                                        font-weight: 800;
+                                        color: #ffffff; font-size: 26px; font-weight: 900;
                                         horizontal-alignment: center;
                                     }
                                     LineEdit {
-                                        placeholder-text: "Enter code...";
+                                        placeholder-text: "Enter code…";
                                         text <=> root.challenge_input;
                                     }
-                                    
                                     Button {
-                                        text: "EXECUTE WIPE";
+                                        text: "⚡  EXECUTE WIPE";
                                         primary: true;
                                         enabled: root.challenge_input == root.active_challenge;
-                                        clicked => { 
-                                            root.start_wipe(root.devices[root.selected_device_index].id, root.challenge_input, root.selected_method); 
+                                        clicked => {
+                                            root.start_wipe(
+                                                root.devices[root.selected_device_index].id,
+                                                root.challenge_input,
+                                                root.selected_method
+                                            );
                                         }
                                     }
                                 }

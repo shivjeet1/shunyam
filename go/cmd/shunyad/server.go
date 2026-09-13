@@ -5,7 +5,7 @@ import (
 	"log"
 	"net"
 	"os"
-	
+
 	"github.com/google/uuid"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -17,6 +17,8 @@ import (
 	"shunya/internal/tools"
 	pb "shunya/shunya/v1"
 )
+
+
 
 // DaemonServer implements the Shunya gRPC services
 type DaemonServer struct {
@@ -69,14 +71,14 @@ func (s *DaemonServer) StartJob(ctx context.Context, req *pb.StartJobRequest) (*
 	}
 
 	jobID := uuid.New().String()
-	
+
 	if err := s.machine.CreateJob(jobID, req.DeviceId); err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to create job: %v", err)
 	}
 
-	if err := tools.StreamWipeJob(s.machine, req, jobID); err != nil {
-		s.machine.Fail(jobID, err)
-	}
+	// Kick off the wipe in the background; StreamEvents will subscribe and relay events.
+	method := req.RequestedMethod
+	go runWipeJob(jobID, method, s.machine)
 
 	return &pb.StartJobResponse{
 		JobId: jobID,
