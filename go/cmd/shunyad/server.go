@@ -31,37 +31,46 @@ type DaemonServer struct {
 }
 
 func (s *DaemonServer) ListDevices(ctx context.Context, req *pb.ListDevicesRequest) (*pb.ListDevicesResponse, error) {
-	if tools.ShouldUseNativeProbe() {
-		adapter := tools.NewRustEngineAdapter("shunya-engine")
-		if err := adapter.ListDevices(); err != nil {
-			log.Printf("Native Rust probing failed: %v", err)
-		}
+	blockDevs, err := tools.ListAllBlockDevices()
+	if err != nil {
+		log.Printf("ListAllBlockDevices failed: %v — returning empty list", err)
 		return &pb.ListDevicesResponse{}, nil
 	}
 
-	adapter := tools.NewNVMEAdapter("nvme")
-	nvmeDevs, err := adapter.ListDevices()
-	if err != nil {
-		log.Printf("Failed to list NVMe devices: %v", err)
-		nvmeDevs = []tools.NVMEDevice{}
-	}
-
 	var devices []*pb.Device
-	for _, dev := range nvmeDevs {
+	for _, dev := range blockDevs {
+		// Determine device class from transport
+		class := "block"
+		switch dev.Transport {
+		case "nvme":
+			class = "nvme-ssd"
+		case "usb":
+			class = "usb-hdd"
+		case "sata", "ata":
+			class = "sata-hdd"
+		}
+
+		// Supported wipe methods depend on transport
+		methods := []string{"zero-fill", "chacha20-purge"}
+		if dev.Transport == "nvme" {
+			methods = append(methods, "nvme.sanitize.crypto", "nvme.sanitize.block")
+		}
+
 		devices = append(devices, &pb.Device{
 			Id:               dev.DevicePath,
-			Class:            "nvme-ssd",
-			Model:            dev.ModelNumber,
-			Serial:           dev.SerialNumber,
-			Firmware:         dev.Firmware,
-			SupportedMethods: []string{"nvme.sanitize.crypto", "nvme.sanitize.block"},
+			Class:            class,
+			Model:            dev.Model,
+			Serial:           dev.Serial,
+			CapacityBytes:    dev.SizeBytes,
+			SupportedMethods: methods,
+			IsSystemDisk:     dev.IsSystem,
+			IsBootMedium:     dev.IsBoot,
 		})
 	}
 
-	return &pb.ListDevicesResponse{
-		Devices: devices,
-	}, nil
+	return &pb.ListDevicesResponse{Devices: devices}, nil
 }
+
 
 func (s *DaemonServer) StartJob(ctx context.Context, req *pb.StartJobRequest) (*pb.StartJobResponse, error) {
 	challengeResponse := req.ChallengeResponse
