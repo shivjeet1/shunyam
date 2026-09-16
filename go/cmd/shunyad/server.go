@@ -92,25 +92,22 @@ func runServer(dbPath, socketPath string) (*grpc.Server, error) {
 		return nil, err
 	}
 
-	// On Windows, named pipes are usually used instead of Unix sockets, but for simplicity
-	// if we're simulating a socket, we use a localhost TCP port or named pipe.
-	// For cross-platform MVP scaffolding, we'll listen on TCP if socketPath starts with ":"
-	
 	var lis net.Listener
-	if socketPath[0] == ':' {
-		lis, err = net.Listen("tcp", socketPath)
-	} else {
-		// Unix socket
+	// Unix socket paths start with '/'. Everything else is treated as a TCP address.
+	if len(socketPath) > 0 && socketPath[0] == '/' {
 		os.RemoveAll(socketPath)
 		lis, err = net.Listen("unix", socketPath)
 		if err == nil {
 			os.Chmod(socketPath, 0666)
 		}
+	} else {
+		lis, err = net.Listen("tcp", socketPath)
 	}
 
 	if err != nil {
 		return nil, err
 	}
+
 
 	grpcServer := grpc.NewServer()
 	srv := &DaemonServer{

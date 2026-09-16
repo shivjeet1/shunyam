@@ -20,19 +20,27 @@ fn main() -> Result<(), slint::PlatformError> {
     let rt = Arc::new(Runtime::new().unwrap());
 
     // ── 1. Daemon health-check poller ──────────────────────────────────────
+    // NOTE: tonic connect() is lazy — it ALWAYS returns Ok even if nothing
+    // is listening. A real RPC call MUST be made to prove the server is alive.
     let rt_poll = rt.clone();
     let ui_poll = ui.as_weak();
     rt_poll.spawn(async move {
         let mut was_connected = false;
         loop {
-            let ok = tokio::time::timeout(
-                Duration::from_millis(600),
-                DeviceServiceClient::connect("http://127.0.0.1:9090"),
-            )
-            .await
-            .map(|r| r.is_ok())
-            .unwrap_or(false);
+            let probe = tokio::time::timeout(Duration::from_millis(800), async {
+                let mut c = DeviceServiceClient::connect("http://127.0.0.1:9090")
+                    .await
+                    .map_err(|e| tonic::Status::unavailable(e.to_string()))?;
+                c.list_devices(ListDevicesRequest {}).await
+            })
+            .await;
 
+            let (ok, devices_opt) = match probe {
+                Ok(Ok(resp)) => (true, Some(resp.into_inner().devices)),
+                _ => (false, None),
+            };
+
+            // Update daemon status indicator
             let ui_c = ui_poll.clone();
             let _ = slint::invoke_from_event_loop(move || {
                 if let Some(ui) = ui_c.upgrade() {
@@ -44,48 +52,37 @@ fn main() -> Result<(), slint::PlatformError> {
                 }
             });
 
-            // On first successful connect: fetch devices and switch to "ready"
+            // On first successful probe: populate devices and switch to "ready"
             if ok && !was_connected {
-                if let Ok(Ok(mut client)) = tokio::time::timeout(
-                    Duration::from_millis(600),
-                    DeviceServiceClient::connect("http://127.0.0.1:9090"),
-                )
-                .await
-                {
-                    if let Ok(resp) = client.list_devices(ListDevicesRequest {}).await {
-                        let devs: Vec<Device> = resp
-                            .into_inner()
-                            .devices
-                            .into_iter()
-                            .map(|d| Device {
-                                id: d.id.into(),
-                                model: d.model.into(),
-                                capacity: format!(
-                                    "{:.1} GB",
-                                    d.capacity_bytes as f64 / 1_000_000_000.0
-                                )
-                                .into(),
-                                status: "Ready".into(),
-                                progress: 0.0,
-                                phase: "idle".into(),
-                                job_id: "".into(),
-                            })
-                            .collect();
+                if let Some(raw_devs) = devices_opt {
+                    let devs: Vec<Device> = raw_devs
+                        .into_iter()
+                        .map(|d| Device {
+                            id: d.id.into(),
+                            model: d.model.into(),
+                            capacity: format!(
+                                "{:.1} GB",
+                                d.capacity_bytes as f64 / 1_000_000_000.0
+                            )
+                            .into(),
+                            status: "Ready".into(),
+                            progress: 0.0,
+                            phase: "idle".into(),
+                            job_id: "".into(),
+                        })
+                        .collect();
 
-                        let ui_c2 = ui_poll.clone();
-                        let _ = slint::invoke_from_event_loop(move || {
-                            if let Some(ui) = ui_c2.upgrade() {
-                                ui.set_devices(
-                                    Rc::new(VecModel::from(devs)).into(),
-                                );
-                                ui.set_ui_state("ready".into());
-                            }
-                        });
-                    }
+                    let ui_c2 = ui_poll.clone();
+                    let _ = slint::invoke_from_event_loop(move || {
+                        if let Some(ui) = ui_c2.upgrade() {
+                            ui.set_devices(Rc::new(VecModel::from(devs)).into());
+                            ui.set_ui_state("ready".into());
+                        }
+                    });
                 }
             }
 
-            // If daemon dropped while inside app: revert to setup
+            // If daemon dropped while in app: revert to setup
             if !ok && was_connected {
                 let ui_c3 = ui_poll.clone();
                 let _ = slint::invoke_from_event_loop(move || {
