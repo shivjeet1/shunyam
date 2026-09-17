@@ -55,6 +55,7 @@ fn main() -> Result<(), slint::PlatformError> {
             // On first successful probe: populate devices and switch to "ready"
             if ok && !was_connected {
                 if let Some(raw_devs) = devices_opt {
+                    let has_nvme = raw_devs.iter().any(|d| d.class == "nvme-ssd");
                     let devs: Vec<Device> = raw_devs
                         .into_iter()
                         .map(|d| Device {
@@ -69,12 +70,17 @@ fn main() -> Result<(), slint::PlatformError> {
                             progress: 0.0,
                             phase: "idle".into(),
                             job_id: "".into(),
+                            dev_class: d.class.into(),
+                            is_system: d.is_system_disk,
                         })
                         .collect();
 
                     let ui_c2 = ui_poll.clone();
                     let _ = slint::invoke_from_event_loop(move || {
                         if let Some(ui) = ui_c2.upgrade() {
+                            if has_nvme {
+                                ui.set_selected_method("NIST 800-88 Cryptographic Erase (Crypto Erase)".into());
+                            }
                             ui.set_devices(Rc::new(VecModel::from(devs)).into());
                             ui.set_ui_state("ready".into());
                         }

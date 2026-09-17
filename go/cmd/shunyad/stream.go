@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
+	"strings"
 	"sync"
 	"time"
 
@@ -15,6 +17,12 @@ var eventBus = struct {
 	sync.RWMutex
 	subs map[string][]chan *pb.JobEvent
 }{subs: make(map[string][]chan *pb.JobEvent)}
+
+// jobMethods stores the sanitization method requested for each job.
+var jobMethods = struct {
+	sync.RWMutex
+	m map[string]string
+}{m: make(map[string]string)}
 
 func subscribe(jobID string) chan *pb.JobEvent {
 	ch := make(chan *pb.JobEvent, 64)
@@ -53,6 +61,14 @@ type wipeRunner interface {
 
 // runWipeJob executes the full wipe lifecycle in the background.
 func runWipeJob(jobID string, method string, machine wipeRunner) {
+	if method == "" {
+		method = "NIST 800-88 Purge (ChaCha20 O_DIRECT)"
+	}
+
+	jobMethods.Lock()
+	jobMethods.m[jobID] = method
+	jobMethods.Unlock()
+
 	type wipeStep struct {
 		state   job.State
 		status  string
@@ -61,15 +77,61 @@ func runWipeJob(jobID string, method string, machine wipeRunner) {
 		sleepMs int
 	}
 
-	steps := []wipeStep{
-		{job.StateProbing,   "InProgress", 5,   "Probing device geometry...", 800},
-		{job.StateWiping,    "InProgress", 20,  "Overwriting sectors (pass 1)...", 600},
-		{job.StateWiping,    "InProgress", 40,  "Overwriting sectors (pass 2)...", 600},
-		{job.StateWiping,    "InProgress", 60,  "Overwriting sectors (pass 3)...", 600},
-		{job.StateWiping,    "InProgress", 80,  "Finalising overwrite...", 600},
-		{job.StateVerifying, "InProgress", 85,  "Running deep carving (JPEG/PNG)...", 1200},
-		{job.StateCarving,   "InProgress", 92,  "Carving: 0 surviving files detected", 800},
-		{job.StateDone,      "Success",    100, "Wipe verified and complete", 0},
+	var steps []wipeStep
+
+	if strings.Contains(method, "Cryptographic Erase") || strings.Contains(method, "Crypto") {
+		// Hardware Cryptographic Erase (NVMe Sanitize / ATA Crypto Scramble)
+		steps = []wipeStep{
+			{job.StateProbing, "InProgress", 10, "Probing NVMe/ATA Crypto Sanitize controller capabilities...", 500},
+			{job.StateWiping, "InProgress", 35, "Dispatching Cryptographic Erase: destroying Media Encryption Key (MEK)...", 700},
+			{job.StateWiping, "InProgress", 65, "Key eradicated. Generating new pseudorandom MEK & flushing hardware caches...", 600},
+			{job.StateVerifying, "InProgress", 85, "Cryptographic audit: validating sector unreadability across addressable LBAs...", 700},
+			{job.StateCarving, "InProgress", 95, "Deep carving: 0 readable data structures detected", 500},
+			{job.StateDone, "Success", 100, "Cryptographic Erase (NIST 800-88 Purge) complete", 0},
+		}
+	} else if strings.Contains(method, "Quick Format") || strings.Contains(method, "Discard") || strings.Contains(method, "TRIM") {
+		// Quick Format / Fast Block Discard (TRIM / BLKDISCARD)
+		steps = []wipeStep{
+			{job.StateProbing, "InProgress", 10, "Verifying TRIM / BLKDISCARD device capability...", 400},
+			{job.StateWiping, "InProgress", 30, "Dispatching block discard (TRIM deallocate) across user LBAs...", 600},
+			{job.StateWiping, "InProgress", 60, "Zeroing MBR, GPT header, and filesystem superblocks...", 500},
+			{job.StateVerifying, "InProgress", 85, "Verifying deallocated blocks & empty partition headers...", 600},
+			{job.StateCarving, "InProgress", 95, "Deep carving: partition table and file records cleared", 400},
+			{job.StateDone, "Success", 100, "Quick Format & Block Discard complete", 0},
+		}
+	} else if strings.Contains(method, "Clear") || strings.Contains(method, "Zero") {
+		// NIST 800-88 Clear (Single Pass Zero)
+		steps = []wipeStep{
+			{job.StateProbing, "InProgress", 5, "Probing device geometry for NIST 800-88 Clear...", 600},
+			{job.StateWiping, "InProgress", 25, "Overwriting sectors with binary zeroes (0x00)...", 800},
+			{job.StateWiping, "InProgress", 55, "Zero-fill pass ongoing across logical sectors...", 800},
+			{job.StateWiping, "InProgress", 80, "Finalizing zero-fill across addressable space...", 700},
+			{job.StateVerifying, "InProgress", 88, "Sampling sectors: verifying zero-fill uniformity...", 1000},
+			{job.StateCarving, "InProgress", 95, "Deep carving: 0 surviving files detected", 700},
+			{job.StateDone, "Success", 100, "NIST 800-88 Clear (Single Pass Zero) complete", 0},
+		}
+	} else if strings.Contains(method, "DoD") {
+		// DoD 5220.22-M 3-Pass Overwrite
+		steps = []wipeStep{
+			{job.StateProbing, "InProgress", 5, "Probing device geometry for DoD 5220.22-M...", 600},
+			{job.StateWiping, "InProgress", 25, "Pass 1/3: Writing binary zeroes (0x00)...", 700},
+			{job.StateWiping, "InProgress", 50, "Pass 2/3: Writing binary complement (0xFF)...", 700},
+			{job.StateWiping, "InProgress", 75, "Pass 3/3: Writing pseudorandom stream...", 700},
+			{job.StateVerifying, "InProgress", 88, "Running DoD compliance read-verification pass...", 1000},
+			{job.StateCarving, "InProgress", 95, "Deep carving: 0 surviving files detected", 700},
+			{job.StateDone, "Success", 100, "DoD 5220.22-M 3-pass sanitization complete", 0},
+		}
+	} else {
+		// NIST 800-88 Purge (ChaCha20 O_DIRECT)
+		steps = []wipeStep{
+			{job.StateProbing, "InProgress", 5, "Probing device geometry and Direct I/O alignment...", 600},
+			{job.StateWiping, "InProgress", 25, "Overwriting sectors with ChaCha20 stream (O_DIRECT | O_SYNC)...", 700},
+			{job.StateWiping, "InProgress", 55, "ChaCha20 pseudorandom overwrite ongoing...", 700},
+			{job.StateWiping, "InProgress", 80, "Finalizing cryptographic overwrite...", 600},
+			{job.StateVerifying, "InProgress", 88, "Running deep carving audit (JPEG/PNG/PDF validation)...", 1000},
+			{job.StateCarving, "InProgress", 95, "Deep carving: 0 surviving files detected", 700},
+			{job.StateDone, "Success", 100, "NIST 800-88 Purge (ChaCha20 O_DIRECT) complete", 0},
+		}
 	}
 
 	for _, s := range steps {
@@ -104,9 +166,20 @@ func (s *DaemonServer) StreamEvents(req *pb.StreamEventsRequest, stream pb.JobSe
 func (s *DaemonServer) GetCertificate(ctx context.Context, req *pb.GetCertificateRequest) (*pb.GetCertificateResponse, error) {
 	log.Printf("Generating certificate for job %s", req.JobId)
 	time.Sleep(800 * time.Millisecond)
+
+	jobMethods.RLock()
+	method, ok := jobMethods.m[req.JobId]
+	jobMethods.RUnlock()
+	if !ok || method == "" {
+		method = "NIST 800-88 Purge (ChaCha20 O_DIRECT)"
+	}
+
+	certJSON := fmt.Sprintf(`{"job_id":"%s","status":"certified","standard":"%s","timestamp":"%s"}`,
+		req.JobId, method, time.Now().UTC().Format(time.RFC3339))
+
 	return &pb.GetCertificateResponse{
-		CertJson:  `{"job_id":"` + req.JobId + `","status":"certified","standard":"NIST 800-88 Purge"}`,
-		PdfData:   []byte("%PDF-1.4 mock"),
-		QrPayload: "shunya://cert/" + req.JobId,
+		CertJson:  certJSON,
+		PdfData:   []byte("%PDF-1.4 mock signed"),
+		QrPayload: "shunya://cert/" + req.JobId + "?method=" + method,
 	}, nil
 }

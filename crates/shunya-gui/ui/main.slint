@@ -9,12 +9,14 @@ export struct Device {
     // phase: "idle" | "wiping" | "verifying" | "done"
     phase: string,
     job_id: string,
+    dev_class: string,
+    is_system: bool,
 }
 
 export component MainWindow inherits Window {
     title: "Shunya Secure Wipe";
-    width: 920px;
-    height: 680px;
+    width: 940px;
+    height: 720px;
     background: #121212;
     default-font-family: "Inter, sans-serif";
 
@@ -29,7 +31,7 @@ export component MainWindow inherits Window {
     in-out property <int>    selected_device_index: -1;
     in-out property <string> active_challenge: "";
     property  <string>       challenge_input: "";
-    property  <string>       selected_method: "NIST 800-88 Purge (ChaCha20 O_DIRECT)";
+    in-out property <string> selected_method: "NIST 800-88 Cryptographic Erase (Crypto Erase)";
 
     // Cert panel state
     in-out property <bool>   cert_generating: false;
@@ -43,27 +45,34 @@ export component MainWindow inherits Window {
 
     // ─── Root layout ──────────────────────────────────────────────────────────
     VerticalLayout {
-        padding: 28px;
-        spacing: 22px;
+        padding: 24px;
+        spacing: 20px;
 
         // Header bar
         HorizontalLayout {
             alignment: space-between;
-            Text {
-                text: "Shunya Secure Wipe";
-                font-size: 26px; font-weight: 800; color: #ffffff;
-                vertical-alignment: center;
+            VerticalLayout {
+                spacing: 2px;
+                Text {
+                    text: "Shunya Secure Wipe";
+                    font-size: 24px; font-weight: 800; color: #ffffff;
+                }
+                Text {
+                    text: "Enterprise Storage Sanitization & Cryptographic Destruction";
+                    font-size: 11px; color: #777777;
+                }
             }
             HorizontalLayout {
                 spacing: 12px; alignment: end;
                 Rectangle {
                     width: 10px; height: 10px; border-radius: 5px;
                     background: root.daemon_connected ? #4CAF50 : #F44336;
+                    y: (parent.height - self.height) / 2;
                 }
                 Text {
-                    text: root.daemon_connected ? "Daemon Online" : "Daemon Offline";
+                    text: root.daemon_connected ? "Daemon Online (127.0.0.1:9090)" : "Daemon Offline";
                     color: root.daemon_connected ? #4CAF50 : #F44336;
-                    font-size: 13px; font-weight: 600; vertical-alignment: center;
+                    font-size: 12px; font-weight: 600; vertical-alignment: center;
                 }
             }
         }
@@ -79,7 +88,7 @@ export component MainWindow inherits Window {
                     horizontal-alignment: center;
                 }
                 Text {
-                    text: "The privileged sanitisation daemon must be running to\naccess block devices and issue wipe commands.";
+                    text: "The privileged sanitization daemon must be running to\naccess block devices and issue wipe commands.";
                     color: #aaaaaa; font-size: 14px;
                     horizontal-alignment: center;
                 }
@@ -116,14 +125,14 @@ export component MainWindow inherits Window {
                     horizontal-alignment: center;
                 }
                 Text {
-                    text: "Secure gRPC connection established to 127.0.0.1:9090.\nStorage devices have been enumerated.";
+                    text: "Secure gRPC connection established to 127.0.0.1:9090.\nStorage devices have been enumerated successfully.";
                     color: #aaaaaa; font-size: 14px;
                     horizontal-alignment: center;
                 }
                 HorizontalLayout {
                     alignment: center;
                     Button {
-                        text: "Launch Application  →";
+                        text: "Launch Sanitization Console  →";
                         primary: true; height: 44px;
                         clicked => { root.ui_state = "active"; }
                     }
@@ -133,40 +142,42 @@ export component MainWindow inherits Window {
 
         // ── STATE: ACTIVE ─────────────────────────────────────────────────────
         if root.ui_state == "active" : HorizontalLayout {
-            spacing: 22px;
+            spacing: 20px;
 
             // ── Left pane: device list ───────────────────────────────────────
             Rectangle {
-                width: parent.width * 0.40;
+                width: parent.width * 0.38;
                 background: #1a1a1a; border-radius: 12px;
                 border-width: 1px; border-color: #2a2a2a;
 
                 VerticalLayout {
-                    padding: 18px; spacing: 14px;
+                    padding: 16px; spacing: 12px;
                     Text {
-                        text: "Storage Devices";
-                        color: #ffffff; font-size: 17px; font-weight: 700;
+                        text: "Connected Storage Media";
+                        color: #ffffff; font-size: 16px; font-weight: 700;
                     }
                     if root.devices.length == 0 : Text {
-                        text: "No devices enumerated.";
+                        text: "No storage devices detected.";
                         color: #555555; font-size: 13px;
                     }
                     ScrollView {
                         VerticalLayout {
                             spacing: 8px;
                             for device[i] in root.devices : Rectangle {
-                                height: 72px;
+                                height: 76px;
                                 background: i == root.selected_device_index ? #1a3050 : #222222;
                                 border-radius: 8px;
                                 border-width: 1px;
                                 border-color: i == root.selected_device_index ? #3a7ab7 : transparent;
                                 HorizontalLayout {
-                                    padding-left: 14px; padding-right: 14px; spacing: 12px;
+                                    padding-left: 12px; padding-right: 12px; spacing: 10px;
                                     Rectangle {
-                                        width: 36px; background: #333; border-radius: 6px;
+                                        width: 38px; height: 38px; background: #2d2d2d; border-radius: 6px;
+                                        y: (parent.height - self.height) / 2;
                                         Text {
                                             text: device.phase == "done" ? "✅"
                                                 : device.phase == "wiping" || device.phase == "verifying" ? "⚙️"
+                                                : device.dev_class == "nvme-ssd" ? "⚡"
                                                 : "💾";
                                             horizontal-alignment: center;
                                             vertical-alignment: center;
@@ -175,21 +186,54 @@ export component MainWindow inherits Window {
                                     }
                                     VerticalLayout {
                                         alignment: center;
+                                        spacing: 3px;
                                         HorizontalLayout {
                                             spacing: 6px;
                                             Text {
                                                 text: device.model;
-                                                color: #eeeeee; font-weight: 600; font-size: 14px;
+                                                color: #eeeeee; font-weight: 600; font-size: 13px;
+                                            }
+                                            if device.dev_class == "nvme-ssd" : Rectangle {
+                                                background: #00332c; border-radius: 3px;
+                                                HorizontalLayout {
+                                                    padding-left: 4px; padding-right: 4px;
+                                                    padding-top: 1px; padding-bottom: 1px;
+                                                    Text { text: "NVMe"; color: #00bfa5; font-size: 9px; font-weight: 700; }
+                                                }
+                                            }
+                                            if device.dev_class == "usb-hdd" : Rectangle {
+                                                background: #25123d; border-radius: 3px;
+                                                HorizontalLayout {
+                                                    padding-left: 4px; padding-right: 4px;
+                                                    padding-top: 1px; padding-bottom: 1px;
+                                                    Text { text: "USB"; color: #b388ff; font-size: 9px; font-weight: 700; }
+                                                }
+                                            }
+                                            if device.is_system : Rectangle {
+                                                background: #3e1010; border-radius: 3px;
+                                                HorizontalLayout {
+                                                    padding-left: 4px; padding-right: 4px;
+                                                    padding-top: 1px; padding-bottom: 1px;
+                                                    Text { text: "OS"; color: #ff5252; font-size: 9px; font-weight: 700; }
+                                                }
                                             }
                                         }
                                         Text {
-                                            text: device.id + "  •  " + device.capacity + "  •  " + device.status;
+                                            text: device.id + "  •  " + device.capacity;
                                             color: #888888; font-size: 11px;
+                                        }
+                                        Text {
+                                            text: "Status: " + device.status;
+                                            color: device.phase == "done" ? #4CAF50
+                                                 : device.phase == "wiping" || device.phase == "verifying" ? #ff9800
+                                                 : #666666;
+                                            font-size: 10px;
                                         }
                                     }
                                     // Status dot
                                     Rectangle {
                                         width: 8px; height: 8px; border-radius: 4px;
+                                        y: (parent.height - self.height) / 2;
                                         background: device.phase == "done" ? #4CAF50
                                                   : device.phase == "wiping" || device.phase == "verifying" ? #ff9800
                                                   : #555555;
@@ -217,36 +261,99 @@ export component MainWindow inherits Window {
                 // No device selected
                 if root.selected_device_index < 0 || root.selected_device_index >= root.devices.length : VerticalLayout {
                     alignment: center;
+                    spacing: 8px;
                     Text {
-                        text: "← Select a device to begin";
-                        color: #444444; horizontal-alignment: center;
+                        text: "← Select a storage drive to configure sanitization";
+                        color: #666666; horizontal-alignment: center; font-size: 15px;
+                    }
+                    Text {
+                        text: "Supports NVMe Cryptographic Erase, Quick Format (TRIM), NIST Purge/Clear, and DoD 5220.22-M";
+                        color: #444444; horizontal-alignment: center; font-size: 12px;
                     }
                 }
 
                 // Device selected
                 if root.selected_device_index >= 0 && root.selected_device_index < root.devices.length : ScrollView {
                     VerticalLayout {
-                        padding-left: 28px; padding-right: 28px;
-                        padding-top: 26px;  padding-bottom: 26px;
-                        spacing: 18px;
+                        padding-left: 24px; padding-right: 24px;
+                        padding-top: 20px;  padding-bottom: 20px;
+                        spacing: 16px;
 
                         // ── Device info card ───────────────────────────────
                         Rectangle {
-                            background: #232323; border-radius: 8px; height: 82px;
-                            HorizontalLayout {
-                                padding-left: 16px; padding-right: 16px; alignment: start;
-                                VerticalLayout {
-                                    alignment: center; spacing: 6px;
-                                    Text {
-                                        text: root.devices[root.selected_device_index].model;
-                                        color: #ffffff; font-size: 16px; font-weight: 700;
+                            background: #232323; border-radius: 8px;
+                            VerticalLayout {
+                                padding: 14px;
+                                spacing: 8px;
+                                HorizontalLayout {
+                                    alignment: space-between;
+                                    HorizontalLayout {
+                                        spacing: 8px;
+                                        Text {
+                                            text: root.devices[root.selected_device_index].model;
+                                            color: #ffffff; font-size: 16px; font-weight: 700;
+                                        }
+                                        Rectangle {
+                                            background: root.devices[root.selected_device_index].dev_class == "nvme-ssd" ? #004d40
+                                                      : root.devices[root.selected_device_index].dev_class == "usb-hdd" ? #311b92
+                                                      : #37474f;
+                                            border-radius: 4px;
+                                            border-width: 1px;
+                                            border-color: root.devices[root.selected_device_index].dev_class == "nvme-ssd" ? #00bfa5
+                                                        : root.devices[root.selected_device_index].dev_class == "usb-hdd" ? #7c4dff
+                                                        : #78909c;
+                                            HorizontalLayout {
+                                                padding-left: 6px; padding-right: 6px;
+                                                padding-top: 2px; padding-bottom: 2px;
+                                                Text {
+                                                    text: root.devices[root.selected_device_index].dev_class == "nvme-ssd" ? "NVMe SSD (Crypto Capable)"
+                                                        : root.devices[root.selected_device_index].dev_class == "usb-hdd" ? "USB Storage"
+                                                        : "SATA / Block";
+                                                    color: #ffffff; font-size: 10px; font-weight: 600;
+                                                }
+                                            }
+                                        }
+                                        if root.devices[root.selected_device_index].is_system : Rectangle {
+                                            background: #b71c1c; border-radius: 4px;
+                                            HorizontalLayout {
+                                                padding-left: 6px; padding-right: 6px;
+                                                padding-top: 2px; padding-bottom: 2px;
+                                                Text {
+                                                    text: "ACTIVE OS DRIVE";
+                                                    color: #ffffff; font-size: 10px; font-weight: 700;
+                                                }
+                                            }
+                                        }
                                     }
+                                }
+                                Text {
+                                    text: "Block Node: " + root.devices[root.selected_device_index].id
+                                        + "   |   Capacity: " + root.devices[root.selected_device_index].capacity;
+                                    color: #888888; font-size: 12px;
+                                }
+                            }
+                        }
+
+                        // ── System Disk Warning Banner ────────────────────
+                        if root.devices[root.selected_device_index].is_system && root.devices[root.selected_device_index].phase == "idle" : Rectangle {
+                            background: #330b0b;
+                            border-radius: 8px;
+                            border-width: 1px;
+                            border-color: #d32f2f;
+                            VerticalLayout {
+                                padding: 12px;
+                                spacing: 4px;
+                                HorizontalLayout {
+                                    spacing: 6px;
+                                    Text { text: "⚠️"; font-size: 14px; }
                                     Text {
-                                        text: root.devices[root.selected_device_index].id
-                                            + "  •  "
-                                            + root.devices[root.selected_device_index].capacity;
-                                        color: #888888; font-size: 12px;
+                                        text: "SYSTEM DRIVE PROTECTION ACTIVE";
+                                        color: #ff5252; font-weight: 700; font-size: 12px;
                                     }
+                                }
+                                Text {
+                                    text: "This drive contains active root or boot partitions. Shunya's Policy Gate strictly rejects destructive commands on mounted system volumes.";
+                                    color: #ffcdd2; font-size: 11px; wrap: word-wrap;
                                 }
                             }
                         }
@@ -254,22 +361,84 @@ export component MainWindow inherits Window {
                         // ── Wipe method selector (only before wipe starts) ─
                         if root.devices[root.selected_device_index].phase == "idle" : VerticalLayout {
                             spacing: 8px;
-                            Text { text: "Wipe Standard:"; color: #aaaaaa; font-size: 13px; }
+                            HorizontalLayout {
+                                Text { text: "Sanitization Method & Standard:"; color: #aaaaaa; font-size: 13px; vertical-alignment: center; }
+                                Rectangle { horizontal-stretch: 1; }
+                                if root.devices[root.selected_device_index].dev_class == "nvme-ssd" : Rectangle {
+                                    background: #00332c;
+                                    border-radius: 4px;
+                                    border-width: 1px;
+                                    border-color: #00bfa5;
+                                    HorizontalLayout {
+                                        padding-left: 6px; padding-right: 6px;
+                                        padding-top: 2px; padding-bottom: 2px;
+                                        Text { text: "⚡ NVMe Crypto Sanitize Available"; color: #00bfa5; font-size: 10px; font-weight: 700; }
+                                    }
+                                }
+                            }
                             ComboBox {
                                 model: [
+                                    "NIST 800-88 Cryptographic Erase (Crypto Erase)",
+                                    "Quick Format / Fast Block Discard (TRIM / BLKDISCARD)",
                                     "NIST 800-88 Purge (ChaCha20 O_DIRECT)",
                                     "NIST 800-88 Clear (Single Pass Zero)",
-                                    "DoD 5220.22-M (3-Pass)"
+                                    "DoD 5220.22-M (3-Pass Overwrite)"
                                 ];
                                 current-value <=> root.selected_method;
                             }
+
+                            // Dynamic explanation card for the selected method
+                            Rectangle {
+                                background: #16202c;
+                                border-radius: 8px;
+                                border-width: 1px;
+                                border-color: #273e5a;
+                                VerticalLayout {
+                                    padding-left: 14px; padding-right: 14px;
+                                    padding-top: 10px; padding-bottom: 10px;
+                                    spacing: 6px;
+                                    HorizontalLayout {
+                                        Text {
+                                            text: root.selected_method == "NIST 800-88 Cryptographic Erase (Crypto Erase)" ? "⚡ Cryptographic Erase (Instant Hardware Sanitization)"
+                                                : root.selected_method == "Quick Format / Fast Block Discard (TRIM / BLKDISCARD)" ? "⚡ Quick Format (Fast Block Discard & Table Zeroing)"
+                                                : root.selected_method == "NIST 800-88 Purge (ChaCha20 O_DIRECT)" ? "🔒 NIST Purge (Cryptographic PRNG Overwrite)"
+                                                : root.selected_method == "NIST 800-88 Clear (Single Pass Zero)" ? "🧹 NIST Clear (Single-Pass Zero Fill)"
+                                                : "🛡️ DoD 5220.22-M (3-Pass Overwrite & Verify)";
+                                            color: #80c0ff;
+                                            font-weight: 700;
+                                            font-size: 12px;
+                                        }
+                                        Rectangle { horizontal-stretch: 1; }
+                                        Text {
+                                            text: root.selected_method == "NIST 800-88 Cryptographic Erase (Crypto Erase)" ? "Est. Time: < 5 sec"
+                                                : root.selected_method == "Quick Format / Fast Block Discard (TRIM / BLKDISCARD)" ? "Est. Time: < 10 sec"
+                                                : root.selected_method == "NIST 800-88 Clear (Single Pass Zero)" ? "Est. Time: ~15 min / 100 GB"
+                                                : root.selected_method == "NIST 800-88 Purge (ChaCha20 O_DIRECT)" ? "Est. Time: ~20 min / 100 GB"
+                                                : "Est. Time: ~60 min / 100 GB";
+                                            color: #ffcc00;
+                                            font-size: 11px;
+                                            vertical-alignment: center;
+                                        }
+                                    }
+                                    Text {
+                                        text: root.selected_method == "NIST 800-88 Cryptographic Erase (Crypto Erase)" ? "Triggers controller-level NVMe/ATA SANITIZE / Crypto Scramble to destroy the Media Encryption Key (MEK). Renders all physical and spare blocks unreadable in seconds without wearing flash cells. Meets NIST SP 800-88 Rev. 1 Purge standard for encrypted media."
+                                            : root.selected_method == "Quick Format / Fast Block Discard (TRIM / BLKDISCARD)" ? "Sends BLKDISCARD / TRIM commands across all logical blocks to immediately unmap and deallocate flash memory, while explicitly zeroing partition headers (GPT/MBR) and filesystem structures for immediate reuse."
+                                            : root.selected_method == "NIST 800-88 Purge (ChaCha20 O_DIRECT)" ? "Generates a cryptographically strong pseudorandom stream via ChaCha20, writing via direct unbuffered I/O (O_DIRECT | O_SYNC) across every user-accessible sector to permanently overwrite media."
+                                            : root.selected_method == "NIST 800-88 Clear (Single Pass Zero)" ? "Overwrites all addressable storage blocks with binary zeroes (0x00) across the entire capacity to ensure logical data cannot be retrieved by standard read tools."
+                                            : "3-pass military specification: Pass 1 writes zeroes (0x00), Pass 2 writes complementary ones (0xFF), Pass 3 writes a random pattern, followed by a read-verification pass.";
+                                        color: #b0c4de;
+                                        font-size: 11px;
+                                        wrap: word-wrap;
+                                    }
+                                }
+                            }
                         }
 
-                        // ── Progress bar (always visible when phase != idle) ─
+                        // ── Progress bar (visible when phase != idle) ─
                         if root.devices[root.selected_device_index].phase != "idle" : VerticalLayout {
                             spacing: 8px;
                             HorizontalLayout {
-                                Text { text: root.devices[root.selected_device_index].status; color: #dddddd; font-size: 14px; }
+                                Text { text: root.devices[root.selected_device_index].status; color: #dddddd; font-size: 13px; }
                                 Rectangle { horizontal-stretch: 1; }
                                 Text {
                                     text: round(root.devices[root.selected_device_index].progress) + "%";
@@ -289,14 +458,14 @@ export component MainWindow inherits Window {
                             VerticalLayout {
                                 padding-left: 16px; padding-right: 16px;
                                 padding-top: 14px;  padding-bottom: 14px;
-                                spacing: 10px;
+                                spacing: 8px;
                                 Text {
                                     text: "🔍  Deep Carving Audit — shunya-carve";
                                     color: #80c0ff; font-weight: 700; font-size: 14px;
                                 }
                                 Text {
-                                    text: "Scanning wiped sectors for surviving JPEG/PNG structural boundaries…";
-                                    color: #aaaacc; font-size: 13px;
+                                    text: "Validating sector sanitization: scanning for residual JPEG/PNG/PDF boundaries and checking cryptographic entropy...";
+                                    color: #aaaacc; font-size: 12px; wrap: word-wrap;
                                 }
                             }
                         }
@@ -307,16 +476,16 @@ export component MainWindow inherits Window {
                             border-width: 1px; border-color: #4CAF50;
                             VerticalLayout {
                                 padding-left: 20px; padding-right: 20px;
-                                padding-top: 18px;  padding-bottom: 18px;
-                                spacing: 14px;
+                                padding-top: 16px;  padding-bottom: 16px;
+                                spacing: 12px;
 
                                 Text {
-                                    text: "✅  Wipe Verified — Carving Score: 0 anomalies";
-                                    color: #4CAF50; font-size: 16px; font-weight: 700;
+                                    text: "✅  Sanitization Verified — Carving Score: 0 Anomalies";
+                                    color: #4CAF50; font-size: 15px; font-weight: 700;
                                 }
                                 Text {
-                                    text: "No recoverable file structures detected.\nSmartCard signature will be embedded in the PDF.";
-                                    color: #aaaaaa; font-size: 13px;
+                                    text: "Completed via " + root.selected_method + "\nCryptographic verification passed. Compliance certificate can now be generated.";
+                                    color: #aaaaaa; font-size: 12px; wrap: word-wrap;
                                 }
 
                                 HorizontalLayout {
@@ -328,7 +497,7 @@ export component MainWindow inherits Window {
                                         width: 90px;
                                     }
                                     LineEdit {
-                                        placeholder-text: "e.g. ADMIN-001";
+                                        placeholder-text: "e.g. SEC-ADMIN-01";
                                         text <=> root.operator_id;
                                     }
                                 }
@@ -349,7 +518,7 @@ export component MainWindow inherits Window {
                                 }
                                 if root.cert_status_msg != "" : Text {
                                     text: root.cert_status_msg;
-                                    color: #80d080; font-size: 13px;
+                                    color: #80d080; font-size: 12px; wrap: word-wrap;
                                 }
                             }
                         }
@@ -359,7 +528,9 @@ export component MainWindow inherits Window {
                             spacing: 12px;
 
                             if root.active_challenge == "" : Button {
-                                text: "🔐  Authorize Secure Wipe";
+                                text: root.selected_method == "NIST 800-88 Cryptographic Erase (Crypto Erase)" ? "🔐  Authorize Cryptographic Erase"
+                                    : root.selected_method == "Quick Format / Fast Block Discard (TRIM / BLKDISCARD)" ? "⚡  Authorize Quick Format / Discard"
+                                    : "🔐  Authorize Secure Wipe";
                                 primary: true; height: 44px;
                                 clicked => {
                                     root.request_challenge(root.devices[root.selected_device_index].id);
@@ -371,27 +542,29 @@ export component MainWindow inherits Window {
                                 border-width: 1px; border-color: #c62828;
                                 VerticalLayout {
                                     padding-left: 20px; padding-right: 20px;
-                                    padding-top: 18px;  padding-bottom: 18px;
-                                    spacing: 14px;
+                                    padding-top: 16px;  padding-bottom: 16px;
+                                    spacing: 12px;
                                     Text {
-                                        text: "⚠  Physical Presence Required";
-                                        color: #ff5252; font-size: 16px; font-weight: 700;
+                                        text: "⚠  Physical Presence Challenge Required";
+                                        color: #ff5252; font-size: 15px; font-weight: 700;
                                     }
                                     Text {
-                                        text: "Type the one-time challenge code exactly to authorise the destructive wipe:";
-                                        color: #dddddd; font-size: 13px;
+                                        text: "Type the one-time challenge code exactly to authorize execution:";
+                                        color: #dddddd; font-size: 12px;
                                     }
                                     Text {
                                         text: root.active_challenge;
-                                        color: #ffffff; font-size: 26px; font-weight: 900;
+                                        color: #ffffff; font-size: 24px; font-weight: 900;
                                         horizontal-alignment: center;
                                     }
                                     LineEdit {
-                                        placeholder-text: "Enter code…";
+                                        placeholder-text: "Enter verification code…";
                                         text <=> root.challenge_input;
                                     }
                                     Button {
-                                        text: "⚡  EXECUTE WIPE";
+                                        text: root.selected_method == "NIST 800-88 Cryptographic Erase (Crypto Erase)" ? "⚡  EXECUTE CRYPTO ERASE"
+                                            : root.selected_method == "Quick Format / Fast Block Discard (TRIM / BLKDISCARD)" ? "⚡  EXECUTE QUICK FORMAT"
+                                            : "⚡  EXECUTE WIPE";
                                         primary: true;
                                         enabled: root.challenge_input == root.active_challenge;
                                         clicked => {
