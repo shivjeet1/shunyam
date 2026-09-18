@@ -114,7 +114,7 @@ make uninstall
                            ┌────────────────────────────┤
                            ▼                            ▼
                     Select Device              Wipe Method Dropdown
-                    Authorize (Challenge)      (NIST 800-88 Purge / Clear / DoD)
+                    Authorize (Challenge)      (NIST Crypto Erase / Quick Format / Purge / Clear / DoD)
                     Execute Wipe                        │
                            │                            ▼
                            ├──── Wiping ──── Live progress stream
