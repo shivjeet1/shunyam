@@ -60,7 +60,7 @@ run-daemon: build-go
 	@echo "==> Starting shunyad on 127.0.0.1:9090..."
 	@$(SHUNYAD)
 
-# Starts the GUI (daemon must already be running).
+# Starts the GUI (can auto-start the daemon via pkexec if not running).
 run-gui: build-rust
 	@echo "==> Launching shunya-gui..."
 	@$(SHUNYA_GUI)
