@@ -121,13 +121,14 @@ fn main() -> Result<(), slint::PlatformError> {
         for path in candidates {
             let log_file = File::create("/tmp/shunyad-gui.log").ok();
             let ok = if let Some(f) = log_file {
-                Command::new(&path)
+                Command::new("pkexec")
+                    .arg(&path)
                     .stdout(Stdio::from(f.try_clone().unwrap()))
                     .stderr(Stdio::from(f))
                     .spawn()
                     .is_ok()
             } else {
-                Command::new(&path).spawn().is_ok()
+                Command::new("pkexec").arg(&path).spawn().is_ok()
             };
             if ok {
                 launched = true;
@@ -142,18 +143,63 @@ fn main() -> Result<(), slint::PlatformError> {
                 if let Some(ui) = ui_c.upgrade() {
                     ui.set_daemon_starting(false);
                     ui.set_daemon_status_msg(
-                        "❌ shunyad binary not found. Run `make install` first.".into(),
+                        "❌ pkexec failed or shunyad binary not found.".into(),
                     );
                 }
             });
         } else {
-            let msg = format!("Spawned shunyad from {}", used_path);
+            let msg = format!("Elevating privileges for {}", used_path);
             let _ = slint::invoke_from_event_loop(move || {
                 if let Some(ui) = ui_c.upgrade() {
                     ui.set_daemon_status_msg(msg.into());
                 }
             });
         }
+    });
+
+    // ── 2.5. Refresh Drives ────────────────────────────────────────────────
+    let rt_refresh = rt.clone();
+    let ui_refresh = ui.as_weak();
+    ui.on_refresh_drives(move || {
+        let ui_c = ui_refresh.clone();
+        rt_refresh.spawn(async move {
+            if let Ok(mut client) = DeviceServiceClient::connect("http://127.0.0.1:9090").await {
+                if let Ok(res) = client.list_devices(ListDevicesRequest {}).await {
+                    let raw_devs = res.into_inner().devices;
+                    let has_nvme = raw_devs.iter().any(|d| d.class == "nvme-ssd");
+                    let devs: Vec<Device> = raw_devs
+                        .into_iter()
+                        .map(|d| Device {
+                            id: d.id.into(),
+                            model: d.model.into(),
+                            capacity: format!(
+                                "{:.1} GB",
+                                d.capacity_bytes as f64 / 1_000_000_000.0
+                            )
+                            .into(),
+                            status: "Ready".into(),
+                            progress: 0.0,
+                            phase: "idle".into(),
+                            job_id: "".into(),
+                            dev_class: d.class.into(),
+                            is_system: d.is_system_disk,
+                        })
+                        .collect();
+
+                    let _ = slint::invoke_from_event_loop(move || {
+                        if let Some(ui) = ui_c.upgrade() {
+                            ui.set_selected_device_index(-1);
+                            ui.set_active_challenge("".into());
+                            ui.set_cert_status_msg("".into());
+                            if has_nvme {
+                                ui.set_selected_method("NIST 800-88 Cryptographic Erase (Crypto Erase)".into());
+                            }
+                            ui.set_devices(Rc::new(VecModel::from(devs)).into());
+                        }
+                    });
+                }
+            }
+        });
     });
 
     // ── 3. Request challenge ───────────────────────────────────────────────
