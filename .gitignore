@@ -1,4 +1,5 @@
 # Build output
+build/*
 build/
 crates/target/
 target/
