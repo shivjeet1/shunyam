@@ -42,6 +42,7 @@ export component MainWindow inherits Window {
     callback request_challenge(string);
     callback start_wipe(string, string, string);  // (device_id, challenge, method)
     callback generate_cert(string, string);       // (job_id, operator_id)
+    callback refresh_drives();
 
     // ─── Root layout ──────────────────────────────────────────────────────────
     VerticalLayout {
@@ -79,33 +80,41 @@ export component MainWindow inherits Window {
 
         // ── STATE: SETUP ────────────────────────────────────────────────────
         if root.ui_state == "setup" : Rectangle {
-            background: #1a1a2e; border-radius: 14px;
+            background: #1e1e1e;
+            border-radius: 8px;
+            border-width: 1px;
+            border-color: #333333;
             VerticalLayout {
-                alignment: center; spacing: 22px;
+                alignment: center; spacing: 16px;
+                padding: 40px;
+                
                 Text {
-                    text: "🔒  Shunya Daemon Offline";
-                    color: #ffffff; font-size: 22px; font-weight: 700;
+                    text: "Privileged Daemon Offline";
+                    color: #ffffff; font-size: 20px; font-weight: 600;
                     horizontal-alignment: center;
                 }
                 Text {
-                    text: "The privileged sanitization daemon must be running to\naccess block devices and issue wipe commands.";
-                    color: #aaaaaa; font-size: 14px;
+                    text: "Shunya requires a background service running as root to safely\naccess raw block devices and issue cryptographic wipe commands.";
+                    color: #999999; font-size: 14px;
                     horizontal-alignment: center;
                 }
+                
                 if root.daemon_status_msg != "" : Text {
                     text: root.daemon_status_msg;
-                    color: #ffcc00; font-size: 13px;
+                    color: #e2b340; font-size: 13px;
                     horizontal-alignment: center;
                 }
+                
                 HorizontalLayout {
                     alignment: center;
+                    padding-top: 16px;
                     Button {
-                        text: root.daemon_starting ? "Starting…" : "▶  Start shunyad";
+                        text: root.daemon_starting ? "Starting..." : "Start Daemon (Requires Sudo)";
                         enabled: !root.daemon_starting;
-                        primary: true; height: 44px;
+                        primary: true; height: 36px; width: 240px;
                         clicked => {
                             root.daemon_starting = true;
-                            root.daemon_status_msg = "Launching shunyad — polling 127.0.0.1:9090…";
+                            root.daemon_status_msg = "Requesting root privileges via polkit...";
                             root.start_daemon();
                         }
                     }
@@ -115,25 +124,31 @@ export component MainWindow inherits Window {
 
         // ── STATE: READY ─────────────────────────────────────────────────────
         if root.ui_state == "ready" : Rectangle {
-            background: #0d2818; border-radius: 14px;
-            border-width: 1px; border-color: #4CAF50;
+            background: #16221c;
+            border-radius: 8px;
+            border-width: 1px;
+            border-color: #274031;
             VerticalLayout {
-                alignment: center; spacing: 18px;
+                alignment: center; spacing: 16px;
+                padding: 40px;
+                
                 Text {
-                    text: "✅  Daemon Connected";
-                    color: #4CAF50; font-size: 22px; font-weight: 700;
+                    text: "Daemon Connected";
+                    color: #4ade80; font-size: 20px; font-weight: 600;
                     horizontal-alignment: center;
                 }
                 Text {
-                    text: "Secure gRPC connection established to 127.0.0.1:9090.\nStorage devices have been enumerated successfully.";
-                    color: #aaaaaa; font-size: 14px;
+                    text: "Connection established to 127.0.0.1:9090.\nBlock devices have been successfully enumerated and are ready for sanitization.";
+                    color: #a3a3a3; font-size: 14px;
                     horizontal-alignment: center;
                 }
+                
                 HorizontalLayout {
                     alignment: center;
+                    padding-top: 16px;
                     Button {
-                        text: "Launch Sanitization Console  →";
-                        primary: true; height: 44px;
+                        text: "Continue to Dashboard";
+                        primary: true; height: 36px; width: 240px;
                         clicked => { root.ui_state = "active"; }
                     }
                 }
@@ -152,9 +167,17 @@ export component MainWindow inherits Window {
 
                 VerticalLayout {
                     padding: 16px; spacing: 12px;
-                    Text {
-                        text: "Connected Storage Media";
-                        color: #ffffff; font-size: 16px; font-weight: 700;
+                    HorizontalLayout {
+                        alignment: space-between;
+                        Text {
+                            text: "Connected Storage Media";
+                            color: #ffffff; font-size: 16px; font-weight: 700;
+                            vertical-alignment: center;
+                        }
+                        Button {
+                            text: "⟳ Refresh";
+                            clicked => { root.refresh_drives(); }
+                        }
                     }
                     if root.devices.length == 0 : Text {
                         text: "No storage devices detected.";
