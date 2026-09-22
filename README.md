@@ -69,7 +69,7 @@ export PATH="$PATH:$HOME/.local/bin"
 
 **Option A — GUI auto-manages the daemon (recommended)**
 
-Simply launch the GUI. The **"Start shunyad"** button will spawn the daemon automatically if it is not already running:
+Simply launch the GUI. The **"Start Daemon"** button will spawn the daemon automatically with root privileges via `pkexec` (Polkit) if it is not already running:
 
 ```bash
 shunya-gui
@@ -78,8 +78,8 @@ shunya-gui
 **Option B — Manual**
 
 ```bash
-# Terminal 1: start the privileged daemon
-shunyad
+# Terminal 1: start the privileged daemon (requires sudo)
+sudo shunyad
 
 # Terminal 2: launch the GUI (connects automatically once daemon is live)
 shunya-gui
@@ -89,7 +89,7 @@ shunya-gui
 
 ```bash
 # Start daemon in foreground (Ctrl-C to stop)
-make run-daemon
+sudo make run-daemon
 
 # In a second terminal, start the GUI
 make run-gui
@@ -158,7 +158,7 @@ shunyam/
 │       ├── db/               # SQLite job store
 │       ├── job/              # State machine (Pending→Wiping→Verifying→Done)
 │       ├── policy/           # Physical presence gate
-│       └── tools/            # nvme-cli / shunya-engine adapters
+│       └── tools/            # lsblk / shunya-engine adapters
 ├── crates/                   # Rust workspace
 │   ├── shunya-engine/        # CLI wipe orchestrator
 │   ├── shunya-gui/           # Slint native UI
@@ -198,6 +198,6 @@ make install PREFIX=/usr/local   # installs to /usr/local/bin
 
 ## Known Issues & Notes
 
-- `ListDevices` on Linux requires `nvme-cli` to be installed (`sudo apt install nvme-cli`) for NVMe enumeration. Without it, the device list will be empty, but the daemon still starts and all other functions remain available.
 - `shunya-engine generate-cert` requires a PCSC-compatible SmartCard reader and a PIV-provisioned token (e.g. YubiKey 5). Without hardware, the engine falls back to a software mock signature.
 - The daemon logs to stderr. Redirect with `shunyad 2>/tmp/shunyad.log` for quiet background operation.
+
