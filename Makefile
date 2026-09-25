@@ -61,7 +61,7 @@ run-daemon: build-go
 	@$(SHUNYAD)
 
 # Starts the GUI (can auto-start the daemon via pkexec if not running).
-run-gui: build-rust
+run-gui: build
 	@echo "==> Launching shunya-gui..."
 	@$(SHUNYA_GUI)
 

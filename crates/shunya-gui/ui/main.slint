@@ -105,6 +105,7 @@ export component MainWindow inherits Window {
                     text: "Shunya requires a background service running as root to safely\naccess raw block devices and issue cryptographic wipe commands.";
                     color: #999999; font-size: 14px;
                     horizontal-alignment: center;
+                    wrap: word-wrap;
                 }
                 
                 if root.daemon_status_msg != "" : Text {
@@ -156,6 +157,7 @@ export component MainWindow inherits Window {
                         text: "Access the main dashboard to cryptographically wipe\ndrives and generate compliance certificates.";
                         color: #a3a3a3; font-size: 14px;
                         horizontal-alignment: center;
+                        wrap: word-wrap;
                     }
                     
                     HorizontalLayout {
@@ -191,6 +193,7 @@ export component MainWindow inherits Window {
                         text: "Verify tamperproof compliance certificates directly\nstored on previously wiped storage media.";
                         color: #a3a3a3; font-size: 14px;
                         horizontal-alignment: center;
+                        wrap: word-wrap;
                     }
                     
                     HorizontalLayout {
@@ -292,6 +295,7 @@ export component MainWindow inherits Window {
                         Text {
                             text: "Shunya automatically provisions a read-only partition (FAT32/ISO9660) at the end of the wiped block device containing the tamperproof, cryptographically signed JSON & PDF certificates. Verification ensures the signature on the disk exactly matches the physical token public keys.";
                             color: #aaaaaa; font-size: 13px;
+                            wrap: word-wrap;
                         }
                         Rectangle {
                             background: #111111; border-radius: 6px; border-width: 1px; border-color: #333333;
@@ -396,6 +400,7 @@ export component MainWindow inherits Window {
                                             Text {
                                                 text: device.model;
                                                 color: #eeeeee; font-weight: 600; font-size: 13px;
+                                                overflow: elide;
                                             }
                                             if device.dev_class == "nvme-ssd" : Rectangle {
                                                 background: #00332c; border-radius: 3px;
@@ -425,6 +430,7 @@ export component MainWindow inherits Window {
                                         Text {
                                             text: device.id + "  •  " + device.capacity;
                                             color: #888888; font-size: 11px;
+                                            overflow: elide;
                                         }
                                         Text {
                                             text: "Status: " + device.status;
@@ -454,6 +460,10 @@ export component MainWindow inherits Window {
                             }
                         }
                     }
+                    Button {
+                        text: "← Back to Main Menu";
+                        clicked => { root.ui_state = "ready"; }
+                    }
                 }
             }
 
@@ -475,6 +485,7 @@ export component MainWindow inherits Window {
                     Text {
                         text: "Supports NVMe Cryptographic Erase, Quick Format (TRIM), NIST Purge/Clear, and DoD 5220.22-M";
                         color: #444444; horizontal-alignment: center; font-size: 12px;
+                        wrap: word-wrap;
                     }
                 }
 
@@ -613,6 +624,7 @@ export component MainWindow inherits Window {
                                             color: #80c0ff;
                                             font-weight: 700;
                                             font-size: 12px;
+                                            wrap: word-wrap;
                                         }
                                         Rectangle { horizontal-stretch: 1; }
                                         Text {
