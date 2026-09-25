@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.6.2
 // - protoc             v7.36.1
-// source: shunya/v1/shunya.proto
+// source: proto/shunya/v1/shunya.proto
 
 package v1
 
@@ -117,7 +117,7 @@ var DeviceService_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "shunya/v1/shunya.proto",
+	Metadata: "proto/shunya/v1/shunya.proto",
 }
 
 const (
@@ -305,7 +305,7 @@ var JobService_ServiceDesc = grpc.ServiceDesc{
 			ServerStreams: true,
 		},
 	},
-	Metadata: "shunya/v1/shunya.proto",
+	Metadata: "proto/shunya/v1/shunya.proto",
 }
 
 const (
@@ -415,11 +415,12 @@ var RecoveryService_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "shunya/v1/shunya.proto",
+	Metadata: "proto/shunya/v1/shunya.proto",
 }
 
 const (
-	CertificateService_GetCertificate_FullMethodName = "/shunya.v1.CertificateService/GetCertificate"
+	CertificateService_GetCertificate_FullMethodName    = "/shunya.v1.CertificateService/GetCertificate"
+	CertificateService_VerifyCertificate_FullMethodName = "/shunya.v1.CertificateService/VerifyCertificate"
 )
 
 // CertificateServiceClient is the client API for CertificateService service.
@@ -431,6 +432,8 @@ const (
 // ---------------------------------------------------------
 type CertificateServiceClient interface {
 	GetCertificate(ctx context.Context, in *GetCertificateRequest, opts ...grpc.CallOption) (*GetCertificateResponse, error)
+	// Verify certificate from a wiped drive
+	VerifyCertificate(ctx context.Context, in *VerifyCertificateRequest, opts ...grpc.CallOption) (*VerifyCertificateResponse, error)
 }
 
 type certificateServiceClient struct {
@@ -451,6 +454,16 @@ func (c *certificateServiceClient) GetCertificate(ctx context.Context, in *GetCe
 	return out, nil
 }
 
+func (c *certificateServiceClient) VerifyCertificate(ctx context.Context, in *VerifyCertificateRequest, opts ...grpc.CallOption) (*VerifyCertificateResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(VerifyCertificateResponse)
+	err := c.cc.Invoke(ctx, CertificateService_VerifyCertificate_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // CertificateServiceServer is the server API for CertificateService service.
 // All implementations must embed UnimplementedCertificateServiceServer
 // for forward compatibility.
@@ -460,6 +473,8 @@ func (c *certificateServiceClient) GetCertificate(ctx context.Context, in *GetCe
 // ---------------------------------------------------------
 type CertificateServiceServer interface {
 	GetCertificate(context.Context, *GetCertificateRequest) (*GetCertificateResponse, error)
+	// Verify certificate from a wiped drive
+	VerifyCertificate(context.Context, *VerifyCertificateRequest) (*VerifyCertificateResponse, error)
 	mustEmbedUnimplementedCertificateServiceServer()
 }
 
@@ -472,6 +487,9 @@ type UnimplementedCertificateServiceServer struct{}
 
 func (UnimplementedCertificateServiceServer) GetCertificate(context.Context, *GetCertificateRequest) (*GetCertificateResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetCertificate not implemented")
+}
+func (UnimplementedCertificateServiceServer) VerifyCertificate(context.Context, *VerifyCertificateRequest) (*VerifyCertificateResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method VerifyCertificate not implemented")
 }
 func (UnimplementedCertificateServiceServer) mustEmbedUnimplementedCertificateServiceServer() {}
 func (UnimplementedCertificateServiceServer) testEmbeddedByValue()                            {}
@@ -512,6 +530,24 @@ func _CertificateService_GetCertificate_Handler(srv interface{}, ctx context.Con
 	return interceptor(ctx, in, info, handler)
 }
 
+func _CertificateService_VerifyCertificate_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(VerifyCertificateRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(CertificateServiceServer).VerifyCertificate(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: CertificateService_VerifyCertificate_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(CertificateServiceServer).VerifyCertificate(ctx, req.(*VerifyCertificateRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // CertificateService_ServiceDesc is the grpc.ServiceDesc for CertificateService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -523,7 +559,11 @@ var CertificateService_ServiceDesc = grpc.ServiceDesc{
 			MethodName: "GetCertificate",
 			Handler:    _CertificateService_GetCertificate_Handler,
 		},
+		{
+			MethodName: "VerifyCertificate",
+			Handler:    _CertificateService_VerifyCertificate_Handler,
+		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "shunya/v1/shunya.proto",
+	Metadata: "proto/shunya/v1/shunya.proto",
 }

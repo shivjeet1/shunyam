@@ -37,4 +37,15 @@ impl PIVSigner {
             }
         }
     }
+
+    /// MVP: Verifies the mock signature generated when no hardware token is available.
+    pub fn verify_manifest_mock(manifest_json: &str, signature: &[u8]) -> bool {
+        use sha2::{Digest, Sha256};
+        let mut hasher = Sha256::new();
+        hasher.update(manifest_json.as_bytes());
+        let hash_str = hasher.finalize().iter().map(|b| format!("{:02x}", b)).collect::<String>();
+        
+        let expected_sig = format!("mock_signature_of_{}", hash_str).into_bytes();
+        signature == expected_sig
+    }
 }

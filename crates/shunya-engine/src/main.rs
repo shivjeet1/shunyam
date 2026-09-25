@@ -10,6 +10,8 @@ use chrono::Utc;
 use std::fs;
 use std::path::Path;
 
+pub mod cert_storage;
+
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Args {
@@ -44,6 +46,13 @@ enum Commands {
         operator: String,
         #[arg(long)]
         out_dir: String,
+        #[arg(long)]
+        target_device: Option<String>,
+    },
+    /// Verifies the compliance certificate stored on a wiped block device
+    VerifyCert {
+        #[arg(long)]
+        device: String,
     },
 }
 
@@ -71,7 +80,7 @@ fn main() {
     let args = Args::parse();
 
     match args.command {
-        Commands::GenerateCert { job_id, device_serial, device_model, capacity, operator, out_dir } => {
+        Commands::GenerateCert { job_id, device_serial, device_model, capacity, operator, out_dir, target_device } => {
             let manifest = shunya_cert::WipeManifest {
                 job_id: job_id.clone(),
                 device_serial,
@@ -81,7 +90,7 @@ fn main() {
                 wipe_duration_sec: 120, // Mock duration
                 timestamp: Utc::now(),
                 operator_id: operator,
-                carve_score: 100,
+                carve_score: 0, // Mock passed
                 verification_hash: "mocked_verification_hash".to_string(),
             };
 
@@ -93,29 +102,56 @@ fn main() {
                 }
             };
 
-            let json_path = Path::new(&out_dir).join(format!("{}.json", job_id));
-            let pdf_path = Path::new(&out_dir).join(format!("{}.pdf", job_id));
-
-            // Write JSON
-            if let Err(e) = fs::write(&json_path, manifest.canonical_json()) {
-                eprintln!("Failed to write JSON: {}", e);
-                exit(1);
-            }
-
-            // Write PDF
-            match shunya_cert::pdf::PdfGenerator::generate(&manifest, Some(&signature)) {
-                Ok(pdf_bytes) => {
-                    if let Err(e) = fs::write(&pdf_path, pdf_bytes) {
-                        eprintln!("Failed to write PDF: {}", e);
-                        exit(1);
-                    }
-                }
+            let json_content = manifest.canonical_json();
+            
+            // Generate PDF
+            let pdf_bytes = match shunya_cert::pdf::PdfGenerator::generate(&manifest, Some(&signature)) {
+                Ok(b) => b,
                 Err(e) => {
                     eprintln!("Failed to generate PDF: {}", e);
                     exit(1);
                 }
+            };
+
+            // Write to disk (out_dir)
+            let json_path = Path::new(&out_dir).join(format!("{}.json", job_id));
+            let pdf_path = Path::new(&out_dir).join(format!("{}.pdf", job_id));
+            
+            if let Err(e) = fs::write(&json_path, &json_content) {
+                eprintln!("Failed to write JSON: {}", e);
             }
-            println!("Certificates generated successfully in {}", out_dir);
+            if let Err(e) = fs::write(&pdf_path, &pdf_bytes) {
+                eprintln!("Failed to write PDF: {}", e);
+            }
+
+            // Write to Drive if requested
+            if let Some(dev) = target_device {
+                if let Err(e) = cert_storage::store_certificate_on_drive(&dev, &json_content, &pdf_bytes, &signature) {
+                    eprintln!("Failed to store certificate on drive {}: {}", dev, e);
+                    exit(1);
+                }
+            }
+
+            println!("Certificates generated successfully.");
+        }
+        Commands::VerifyCert { device } => {
+            println!("Extracting and verifying certificate on {}...", device);
+            match cert_storage::verify_certificate_on_drive(&device) {
+                Ok((manifest_json, is_valid)) => {
+                    if is_valid {
+                        println!("✅ Certificate VERIFIED successfully!");
+                        println!("Manifest contents:\n{}", manifest_json);
+                        exit(0);
+                    } else {
+                        eprintln!("❌ Certificate verification FAILED! Signature does not match or data was tampered.");
+                        exit(1);
+                    }
+                }
+                Err(e) => {
+                    eprintln!("Failed to verify certificate: {}", e);
+                    exit(1);
+                }
+            }
         }
         Commands::Stream => {
             let mut len_buf = [0u8; 4];

@@ -38,11 +38,17 @@ export component MainWindow inherits Window {
     in-out property <string> cert_status_msg: "";
     property  <string>       operator_id: "";
 
+    // Verify cert panel state
+    in-out property <string> verify_status: "idle"; // idle, verifying, success, error
+    in-out property <string> verify_manifest_json: "";
+    in-out property <string> verify_error_message: "";
+
     callback start_daemon();
     callback request_challenge(string);
     callback start_wipe(string, string, string);  // (device_id, challenge, method)
     callback generate_cert(string, string);       // (job_id, operator_id)
     callback refresh_drives();
+    callback verify_certificate(string);          // (device_id)
 
     // ─── Root layout ──────────────────────────────────────────────────────────
     VerticalLayout {
@@ -123,33 +129,200 @@ export component MainWindow inherits Window {
         }
 
         // ── STATE: READY ─────────────────────────────────────────────────────
-        if root.ui_state == "ready" : Rectangle {
-            background: #16221c;
-            border-radius: 8px;
-            border-width: 1px;
-            border-color: #274031;
-            VerticalLayout {
-                alignment: center; spacing: 16px;
-                padding: 40px;
-                
-                Text {
-                    text: "Daemon Connected";
-                    color: #4ade80; font-size: 20px; font-weight: 600;
-                    horizontal-alignment: center;
+        if root.ui_state == "ready" : HorizontalLayout {
+            spacing: 24px;
+            alignment: center;
+            
+            // Left Card: Sanitization Console
+            Rectangle {
+                width: 420px;
+                background: #16221c;
+                border-radius: 8px;
+                border-width: 1px;
+                border-color: #274031;
+                VerticalLayout {
+                    alignment: center; spacing: 16px;
+                    padding: 40px;
+                    
+                    Text {
+                        text: "Sanitization Console";
+                        color: #4ade80; font-size: 20px; font-weight: 600;
+                        horizontal-alignment: center;
+                    }
+                    Text {
+                        text: "Access the main dashboard to cryptographically wipe\ndrives and generate compliance certificates.";
+                        color: #a3a3a3; font-size: 14px;
+                        horizontal-alignment: center;
+                    }
+                    
+                    HorizontalLayout {
+                        alignment: center;
+                        padding-top: 16px;
+                        Button {
+                            text: "Start Wipe Console";
+                            primary: true; height: 36px; width: 220px;
+                            clicked => { root.ui_state = "active"; }
+                        }
+                    }
                 }
-                Text {
-                    text: "Connection established to 127.0.0.1:9090.\nBlock devices have been successfully enumerated and are ready for sanitization.";
-                    color: #a3a3a3; font-size: 14px;
-                    horizontal-alignment: center;
+            }
+
+            // Right Card: Certificate Auditor
+            Rectangle {
+                width: 420px;
+                background: #1c2233;
+                border-radius: 8px;
+                border-width: 1px;
+                border-color: #2d3752;
+                VerticalLayout {
+                    alignment: center; spacing: 16px;
+                    padding: 40px;
+                    
+                    Text {
+                        text: "Certificate Auditor";
+                        color: #60a5fa; font-size: 20px; font-weight: 600;
+                        horizontal-alignment: center;
+                    }
+                    Text {
+                        text: "Verify tamperproof compliance certificates directly\nstored on previously wiped storage media.";
+                        color: #a3a3a3; font-size: 14px;
+                        horizontal-alignment: center;
+                    }
+                    
+                    HorizontalLayout {
+                        alignment: center;
+                        padding-top: 16px;
+                        Button {
+                            text: "Audit & Verify Drive";
+                            primary: true; height: 36px; width: 220px;
+                            clicked => { root.ui_state = "verify"; }
+                        }
+                    }
                 }
-                
-                HorizontalLayout {
-                    alignment: center;
-                    padding-top: 16px;
+            }
+        }
+
+        // ── STATE: VERIFY ────────────────────────────────────────────────────
+        if root.ui_state == "verify" : HorizontalLayout {
+            spacing: 20px;
+
+            // ── Left pane: device list ───────────────────────────────────────
+            Rectangle {
+                width: parent.width * 0.38;
+                background: #1a1a1a; border-radius: 12px;
+                border-width: 1px; border-color: #2a2a2a;
+
+                VerticalLayout {
+                    padding: 16px; spacing: 12px;
+                    HorizontalLayout {
+                        alignment: space-between;
+                        Text {
+                            text: "Select Drive to Audit";
+                            color: #ffffff; font-size: 16px; font-weight: 700;
+                            vertical-alignment: center;
+                        }
+                        Button {
+                            text: "⟳ Refresh";
+                            clicked => { root.refresh_drives(); }
+                        }
+                    }
+                    if root.devices.length == 0 : Text {
+                        text: "No storage devices detected.";
+                        color: #555555; font-size: 13px;
+                    }
+                    ScrollView {
+                        VerticalLayout {
+                            spacing: 8px;
+                            for device[i] in root.devices : Rectangle {
+                                height: 60px;
+                                background: i == root.selected_device_index ? #1a3050 : #222222;
+                                border-radius: 8px;
+                                border-width: 1px;
+                                border-color: i == root.selected_device_index ? #3a7ab7 : transparent;
+                                HorizontalLayout {
+                                    padding-left: 12px; padding-right: 12px; spacing: 10px;
+                                    VerticalLayout {
+                                        alignment: center;
+                                        Text { text: device.id; color: #ffffff; font-size: 13px; font-weight: 700; }
+                                        Text { text: device.capacity + " • " + device.model; color: #aaaaaa; font-size: 11px; }
+                                    }
+                                }
+                                TouchArea {
+                                    clicked => { 
+                                        root.selected_device_index = i; 
+                                        root.verify_status = "idle";
+                                    }
+                                }
+                            }
+                        }
+                    }
                     Button {
-                        text: "Continue to Dashboard";
-                        primary: true; height: 36px; width: 240px;
-                        clicked => { root.ui_state = "active"; }
+                        text: "← Back to Main Menu";
+                        clicked => { root.ui_state = "ready"; }
+                    }
+                }
+            }
+
+            // ── Right pane: Verification context ────────────────────────────
+            Rectangle {
+                background: #1a1a1a; border-radius: 12px;
+                border-width: 1px; border-color: #2a2a2a;
+                VerticalLayout {
+                    padding: 30px; spacing: 20px;
+                    if root.selected_device_index == -1 : VerticalLayout {
+                        alignment: center;
+                        Text {
+                            text: "Select a drive from the list\nto extract and verify its compliance certificate.";
+                            color: #777777; font-size: 14px; horizontal-alignment: center;
+                        }
+                    }
+                    if root.selected_device_index != -1 : VerticalLayout {
+                        spacing: 20px;
+                        Text {
+                            text: "Certificate Verification";
+                            color: #ffffff; font-size: 18px; font-weight: 700;
+                        }
+                        Text {
+                            text: "Shunya automatically provisions a read-only partition (FAT32/ISO9660) at the end of the wiped block device containing the tamperproof, cryptographically signed JSON & PDF certificates. Verification ensures the signature on the disk exactly matches the physical token public keys.";
+                            color: #aaaaaa; font-size: 13px;
+                        }
+                        Rectangle {
+                            background: #111111; border-radius: 6px; border-width: 1px; border-color: #333333;
+                            VerticalLayout {
+                                padding: 16px; spacing: 12px;
+                                Text { text: "Target Device: " + root.devices[root.selected_device_index].id; color: #ffffff; font-weight: 600; font-size: 14px; }
+                                Text { text: "Device Model: " + root.devices[root.selected_device_index].model; color: #aaaaaa; font-size: 13px; }
+                            }
+                        }
+                        if root.verify_status == "idle" || root.verify_status == "error" : Button {
+                            text: "Extract & Verify Cryptographic Signature";
+                            primary: true; height: 40px;
+                            clicked => { 
+                                root.verify_status = "verifying";
+                                root.verify_certificate(root.devices[root.selected_device_index].id); 
+                            }
+                        }
+                        if root.verify_status == "verifying" : Text {
+                            text: "Extracting from partition and verifying PIV signature...";
+                            color: #ffcc00; font-size: 14px; font-weight: 600; horizontal-alignment: center;
+                        }
+                        if root.verify_status == "success" : Rectangle {
+                            background: #102a1b; border-radius: 6px; border-width: 1px; border-color: #274031;
+                            VerticalLayout {
+                                padding: 16px; spacing: 8px;
+                                Text { text: "✅ Certificate VERIFIED successfully!"; color: #4ade80; font-weight: 700; font-size: 14px; }
+                                Text { text: "Manifest Signature is authentic."; color: #a3a3a3; font-size: 13px; }
+                                Text { text: root.verify_manifest_json; color: #a3a3a3; font-size: 11px; wrap: word-wrap; }
+                            }
+                        }
+                        if root.verify_status == "error" : Rectangle {
+                            background: #331515; border-radius: 6px; border-width: 1px; border-color: #4a1f1f;
+                            VerticalLayout {
+                                padding: 16px; spacing: 8px;
+                                Text { text: "❌ Verification FAILED"; color: #ef4444; font-weight: 700; font-size: 14px; }
+                                Text { text: root.verify_error_message; color: #ffb3b3; font-size: 12px; wrap: word-wrap; }
+                            }
+                        }
                     }
                 }
             }

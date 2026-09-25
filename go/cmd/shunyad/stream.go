@@ -1,9 +1,11 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"log"
+	"os/exec"
 	"strings"
 	"sync"
 	"time"
@@ -181,5 +183,29 @@ func (s *DaemonServer) GetCertificate(ctx context.Context, req *pb.GetCertificat
 		CertJson:  certJSON,
 		PdfData:   []byte("%PDF-1.4 mock signed"),
 		QrPayload: "shunya://cert/" + req.JobId + "?method=" + method,
+	}, nil
+}
+
+// VerifyCertificate triggers certificate verification via shunya-engine on the target block device.
+func (s *DaemonServer) VerifyCertificate(ctx context.Context, req *pb.VerifyCertificateRequest) (*pb.VerifyCertificateResponse, error) {
+	log.Printf("Verifying certificate on device %s", req.DeviceId)
+	
+	// Invoke shunya-engine verify-cert --device req.DeviceId
+	cmd := exec.Command("shunya-engine", "verify-cert", "--device", req.DeviceId)
+	var out bytes.Buffer
+	var stderr bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &stderr
+
+	err := cmd.Run()
+	
+	isValid := err == nil
+	manifestJson := out.String()
+	errMsg := stderr.String()
+	
+	return &pb.VerifyCertificateResponse{
+		IsValid:      isValid,
+		ManifestJson: manifestJson,
+		ErrorMessage: errMsg,
 	}, nil
 }

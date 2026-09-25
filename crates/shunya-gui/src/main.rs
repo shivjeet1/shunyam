@@ -5,7 +5,7 @@ use shunya_proto::v1::job_service_client::JobServiceClient;
 use shunya_proto::v1::certificate_service_client::CertificateServiceClient;
 use shunya_proto::v1::{
     ListDevicesRequest, StartJobRequest, GetChallengeRequest,
-    StreamEventsRequest, GetCertificateRequest,
+    StreamEventsRequest, GetCertificateRequest, VerifyCertificateRequest,
 };
 use tokio::runtime::Runtime;
 use std::sync::Arc;
@@ -368,6 +368,61 @@ fn main() -> Result<(), slint::PlatformError> {
                             ui.set_cert_status_msg(
                                 "Failed to connect to CertificateService".into(),
                             );
+                        }
+                    });
+                }
+            }
+        });
+    });
+
+    // ── 6. Verify certificate ──────────────────────────────────────────────
+    let rt_verify = rt.clone();
+    let ui_verify = ui.as_weak();
+    ui.on_verify_certificate(move |device_id| {
+        let dev_id = device_id.to_string();
+        let ui_c = ui_verify.clone();
+
+        rt_verify.spawn(async move {
+            match CertificateServiceClient::connect("http://127.0.0.1:9090").await {
+                Ok(mut client) => {
+                    match client
+                        .verify_certificate(VerifyCertificateRequest { device_id: dev_id })
+                        .await
+                    {
+                        Ok(res) => {
+                            let resp = res.into_inner();
+                            let is_valid = resp.is_valid;
+                            let manifest = resp.manifest_json;
+                            let err_msg = resp.error_message;
+                            
+                            let _ = slint::invoke_from_event_loop(move || {
+                                if let Some(ui) = ui_c.upgrade() {
+                                    if is_valid {
+                                        ui.set_verify_status("success".into());
+                                        ui.set_verify_manifest_json(manifest.into());
+                                    } else {
+                                        ui.set_verify_status("error".into());
+                                        ui.set_verify_error_message(err_msg.into());
+                                    }
+                                }
+                            });
+                        }
+                        Err(e) => {
+                            let msg = format!("RPC error: {}", e);
+                            let _ = slint::invoke_from_event_loop(move || {
+                                if let Some(ui) = ui_c.upgrade() {
+                                    ui.set_verify_status("error".into());
+                                    ui.set_verify_error_message(msg.into());
+                                }
+                            });
+                        }
+                    }
+                }
+                Err(_) => {
+                    let _ = slint::invoke_from_event_loop(move || {
+                        if let Some(ui) = ui_c.upgrade() {
+                            ui.set_verify_status("error".into());
+                            ui.set_verify_error_message("Failed to connect to Daemon".into());
                         }
                     });
                 }

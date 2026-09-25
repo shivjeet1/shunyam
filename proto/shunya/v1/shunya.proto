@@ -97,6 +97,9 @@ message StartRecoveryResponse {
 // ---------------------------------------------------------
 service CertificateService {
   rpc GetCertificate(GetCertificateRequest) returns (GetCertificateResponse);
+  
+  // Verify certificate from a wiped drive
+  rpc VerifyCertificate(VerifyCertificateRequest) returns (VerifyCertificateResponse);
 }
 
 message GetCertificateRequest {
@@ -107,4 +110,14 @@ message GetCertificateResponse {
   string cert_json = 1;
   bytes pdf_data = 2;
   string qr_payload = 3;
+}
+
+message VerifyCertificateRequest {
+  string device_id = 1;
+}
+
+message VerifyCertificateResponse {
+  bool is_valid = 1;
+  string manifest_json = 2;
+  string error_message = 3;
 }
