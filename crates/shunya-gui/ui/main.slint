@@ -6,7 +6,7 @@ export struct Device {
     capacity: string,
     status: string,
     progress: float,
-    // phase: "idle" | "wiping" | "verifying" | "done"
+    // phase: "idle"| "wiping"| "verifying"| "done"
     phase: string,
     job_id: string,
     dev_class: string,
@@ -25,7 +25,7 @@ export component MainWindow inherits Window {
     in property <[Device]> devices: [];
     in property <bool> daemon_connected: false;
 
-    // UI State: "setup" | "ready" | "active"
+    // UI State: "setup"| "ready"| "active"
     in-out property <string> ui_state: "setup";
     in-out property <string> daemon_status_msg: "";
     in-out property <bool>   daemon_starting: false;
@@ -79,7 +79,7 @@ export component MainWindow inherits Window {
                     y: (parent.height - self.height) / 2;
                 }
                 Text {
-                    text: root.daemon_connected ? "Daemon Online (127.0.0.1:9090)" : "Daemon Offline";
+                    text: root.daemon_connected ? "Daemon Online (127.0.0.1:9090)": "Daemon Offline";
                     color: root.daemon_connected ? #4CAF50 : #F44336;
                     font-size: 12px; font-weight: 600; vertical-alignment: center;
                 }
@@ -87,7 +87,7 @@ export component MainWindow inherits Window {
         }
 
         // ── STATE: SETUP ────────────────────────────────────────────────────
-        if root.ui_state == "setup" : Rectangle {
+        if root.ui_state == "setup": Rectangle {
             background: #1e1e1e;
             border-radius: 8px;
             border-width: 1px;
@@ -108,7 +108,7 @@ export component MainWindow inherits Window {
                     wrap: word-wrap;
                 }
                 
-                if root.daemon_status_msg != "" : Text {
+                if root.daemon_status_msg != "": Text {
                     text: root.daemon_status_msg;
                     color: #e2b340; font-size: 13px;
                     horizontal-alignment: center;
@@ -118,7 +118,7 @@ export component MainWindow inherits Window {
                     alignment: center;
                     padding-top: 16px;
                     Button {
-                        text: root.daemon_starting ? "Starting..." : "Start Daemon (Requires Sudo)";
+                        text: root.daemon_starting ? "Starting...": "Start Daemon (Requires Sudo)";
                         enabled: !root.daemon_starting;
                         primary: true; height: 36px; width: 240px;
                         clicked => {
@@ -132,7 +132,7 @@ export component MainWindow inherits Window {
         }
 
         // ── STATE: READY ─────────────────────────────────────────────────────
-        if root.ui_state == "ready" : HorizontalLayout {
+        if root.ui_state == "ready": HorizontalLayout {
             spacing: 24px;
             alignment: center;
             
@@ -210,7 +210,7 @@ export component MainWindow inherits Window {
         }
 
         // ── STATE: VERIFY ────────────────────────────────────────────────────
-        if root.ui_state == "verify" : HorizontalLayout {
+        if root.ui_state == "verify": HorizontalLayout {
             spacing: 20px;
 
             // ── Left pane: device list ───────────────────────────────────────
@@ -252,7 +252,7 @@ export component MainWindow inherits Window {
                                     VerticalLayout {
                                         alignment: center;
                                         Text { text: device.id; color: #ffffff; font-size: 13px; font-weight: 700; }
-                                        Text { text: device.capacity + " • " + device.model; color: #aaaaaa; font-size: 11px; }
+                                        Text { text: device.capacity + "• "+ device.model; color: #aaaaaa; font-size: 11px; }
                                     }
                                 }
                                 TouchArea {
@@ -301,11 +301,11 @@ export component MainWindow inherits Window {
                             background: #111111; border-radius: 6px; border-width: 1px; border-color: #333333;
                             VerticalLayout {
                                 padding: 16px; spacing: 12px;
-                                Text { text: "Target Device: " + root.devices[root.selected_device_index].id; color: #ffffff; font-weight: 600; font-size: 14px; }
-                                Text { text: "Device Model: " + root.devices[root.selected_device_index].model; color: #aaaaaa; font-size: 13px; }
+                                Text { text: "Target Device: "+ root.devices[root.selected_device_index].id; color: #ffffff; font-weight: 600; font-size: 14px; }
+                                Text { text: "Device Model: "+ root.devices[root.selected_device_index].model; color: #aaaaaa; font-size: 13px; }
                             }
                         }
-                        if root.verify_status == "idle" || root.verify_status == "error" : Button {
+                        if root.verify_status == "idle"|| root.verify_status == "error": Button {
                             text: "Extract & Verify Cryptographic Signature";
                             primary: true; height: 40px;
                             clicked => { 
@@ -313,20 +313,20 @@ export component MainWindow inherits Window {
                                 root.verify_certificate(root.devices[root.selected_device_index].id); 
                             }
                         }
-                        if root.verify_status == "verifying" : Text {
+                        if root.verify_status == "verifying": Text {
                             text: "Extracting from partition and verifying PIV signature...";
                             color: #ffcc00; font-size: 14px; font-weight: 600; horizontal-alignment: center;
                         }
-                        if root.verify_status == "success" : Rectangle {
+                        if root.verify_status == "success": Rectangle {
                             background: #102a1b; border-radius: 6px; border-width: 1px; border-color: #274031;
                             VerticalLayout {
                                 padding: 16px; spacing: 8px;
-                                Text { text: "✅ Certificate VERIFIED successfully!"; color: #4ade80; font-weight: 700; font-size: 14px; }
+                                Text { text: "OK Certificate VERIFIED successfully!"; color: #4ade80; font-weight: 700; font-size: 14px; }
                                 Text { text: "Manifest Signature is authentic."; color: #a3a3a3; font-size: 13px; }
                                 Text { text: root.verify_manifest_json; color: #a3a3a3; font-size: 11px; wrap: word-wrap; }
                             }
                         }
-                        if root.verify_status == "error" : Rectangle {
+                        if root.verify_status == "error": Rectangle {
                             background: #331515; border-radius: 6px; border-width: 1px; border-color: #4a1f1f;
                             VerticalLayout {
                                 padding: 16px; spacing: 8px;
@@ -340,7 +340,7 @@ export component MainWindow inherits Window {
         }
 
         // ── STATE: ACTIVE ─────────────────────────────────────────────────────
-        if root.ui_state == "active" : HorizontalLayout {
+        if root.ui_state == "active": HorizontalLayout {
             spacing: 20px;
 
             // ── Left pane: device list ───────────────────────────────────────
@@ -383,10 +383,10 @@ export component MainWindow inherits Window {
                                         width: 38px; height: 38px; background: #2d2d2d; border-radius: 6px;
                                         y: (parent.height - self.height) / 2;
                                         Text {
-                                            text: device.phase == "done" ? "✅"
-                                                : device.phase == "wiping" || device.phase == "verifying" ? "⚙️"
-                                                : device.dev_class == "nvme-ssd" ? "⚡"
-                                                : "💾";
+                                            text: device.phase == "done"? "OK"
+                                                : device.phase == "wiping"|| device.phase == "verifying"? ">>"
+                                                : device.dev_class == "nvme-ssd"? "NV"
+                                                : "DR";
                                             horizontal-alignment: center;
                                             vertical-alignment: center;
                                             font-size: 18px;
@@ -401,8 +401,9 @@ export component MainWindow inherits Window {
                                                 text: device.model;
                                                 color: #eeeeee; font-weight: 600; font-size: 13px;
                                                 overflow: elide;
+                                                horizontal-stretch: 1;
                                             }
-                                            if device.dev_class == "nvme-ssd" : Rectangle {
+                                            if device.dev_class == "nvme-ssd": Rectangle {
                                                 background: #00332c; border-radius: 3px;
                                                 HorizontalLayout {
                                                     padding-left: 4px; padding-right: 4px;
@@ -410,7 +411,7 @@ export component MainWindow inherits Window {
                                                     Text { text: "NVMe"; color: #00bfa5; font-size: 9px; font-weight: 700; }
                                                 }
                                             }
-                                            if device.dev_class == "usb-hdd" : Rectangle {
+                                            if device.dev_class == "usb-hdd": Rectangle {
                                                 background: #25123d; border-radius: 3px;
                                                 HorizontalLayout {
                                                     padding-left: 4px; padding-right: 4px;
@@ -428,14 +429,14 @@ export component MainWindow inherits Window {
                                             }
                                         }
                                         Text {
-                                            text: device.id + "  •  " + device.capacity;
+                                            text: device.id + " •  "+ device.capacity;
                                             color: #888888; font-size: 11px;
                                             overflow: elide;
                                         }
                                         Text {
-                                            text: "Status: " + device.status;
-                                            color: device.phase == "done" ? #4CAF50
-                                                 : device.phase == "wiping" || device.phase == "verifying" ? #ff9800
+                                            text: "Status: "+ device.status;
+                                            color: device.phase == "done"? #4CAF50
+                                                 : device.phase == "wiping"|| device.phase == "verifying"? #ff9800
                                                  : #666666;
                                             font-size: 10px;
                                         }
@@ -444,8 +445,8 @@ export component MainWindow inherits Window {
                                     Rectangle {
                                         width: 8px; height: 8px; border-radius: 4px;
                                         y: (parent.height - self.height) / 2;
-                                        background: device.phase == "done" ? #4CAF50
-                                                  : device.phase == "wiping" || device.phase == "verifying" ? #ff9800
+                                        background: device.phase == "done"? #4CAF50
+                                                  : device.phase == "wiping"|| device.phase == "verifying"? #ff9800
                                                   : #555555;
                                     }
                                 }
@@ -509,22 +510,24 @@ export component MainWindow inherits Window {
                                         Text {
                                             text: root.devices[root.selected_device_index].model;
                                             color: #ffffff; font-size: 16px; font-weight: 700;
+                                            overflow: elide;
+                                            horizontal-stretch: 1;
                                         }
                                         Rectangle {
-                                            background: root.devices[root.selected_device_index].dev_class == "nvme-ssd" ? #004d40
-                                                      : root.devices[root.selected_device_index].dev_class == "usb-hdd" ? #311b92
+                                            background: root.devices[root.selected_device_index].dev_class == "nvme-ssd"? #004d40
+                                                      : root.devices[root.selected_device_index].dev_class == "usb-hdd"? #311b92
                                                       : #37474f;
                                             border-radius: 4px;
                                             border-width: 1px;
-                                            border-color: root.devices[root.selected_device_index].dev_class == "nvme-ssd" ? #00bfa5
-                                                        : root.devices[root.selected_device_index].dev_class == "usb-hdd" ? #7c4dff
+                                            border-color: root.devices[root.selected_device_index].dev_class == "nvme-ssd"? #00bfa5
+                                                        : root.devices[root.selected_device_index].dev_class == "usb-hdd"? #7c4dff
                                                         : #78909c;
                                             HorizontalLayout {
                                                 padding-left: 6px; padding-right: 6px;
                                                 padding-top: 2px; padding-bottom: 2px;
                                                 Text {
-                                                    text: root.devices[root.selected_device_index].dev_class == "nvme-ssd" ? "NVMe SSD (Crypto Capable)"
-                                                        : root.devices[root.selected_device_index].dev_class == "usb-hdd" ? "USB Storage"
+                                                    text: root.devices[root.selected_device_index].dev_class == "nvme-ssd"? "NVMe SSD (Crypto Capable)"
+                                                        : root.devices[root.selected_device_index].dev_class == "usb-hdd"? "USB Storage"
                                                         : "SATA / Block";
                                                     color: #ffffff; font-size: 10px; font-weight: 600;
                                                 }
@@ -544,15 +547,15 @@ export component MainWindow inherits Window {
                                     }
                                 }
                                 Text {
-                                    text: "Block Node: " + root.devices[root.selected_device_index].id
-                                        + "   |   Capacity: " + root.devices[root.selected_device_index].capacity;
+                                    text: "Block Node: "+ root.devices[root.selected_device_index].id
+                                        + "  |   Capacity: "+ root.devices[root.selected_device_index].capacity;
                                     color: #888888; font-size: 12px;
                                 }
                             }
                         }
 
                         // ── System Disk Warning Banner ────────────────────
-                        if root.devices[root.selected_device_index].is_system && root.devices[root.selected_device_index].phase == "idle" : Rectangle {
+                        if root.devices[root.selected_device_index].is_system && root.devices[root.selected_device_index].phase == "idle": Rectangle {
                             background: #330b0b;
                             border-radius: 8px;
                             border-width: 1px;
@@ -562,7 +565,7 @@ export component MainWindow inherits Window {
                                 spacing: 4px;
                                 HorizontalLayout {
                                     spacing: 6px;
-                                    Text { text: "⚠️"; font-size: 14px; }
+                                    Text { text: "[!]"; font-size: 14px; }
                                     Text {
                                         text: "SYSTEM DRIVE PROTECTION ACTIVE";
                                         color: #ff5252; font-weight: 700; font-size: 12px;
@@ -576,12 +579,12 @@ export component MainWindow inherits Window {
                         }
 
                         // ── Wipe method selector (only before wipe starts) ─
-                        if root.devices[root.selected_device_index].phase == "idle" : VerticalLayout {
+                        if root.devices[root.selected_device_index].phase == "idle": VerticalLayout {
                             spacing: 8px;
                             HorizontalLayout {
                                 Text { text: "Sanitization Method & Standard:"; color: #aaaaaa; font-size: 13px; vertical-alignment: center; }
                                 Rectangle { horizontal-stretch: 1; }
-                                if root.devices[root.selected_device_index].dev_class == "nvme-ssd" : Rectangle {
+                                if root.devices[root.selected_device_index].dev_class == "nvme-ssd": Rectangle {
                                     background: #00332c;
                                     border-radius: 4px;
                                     border-width: 1px;
@@ -589,7 +592,7 @@ export component MainWindow inherits Window {
                                     HorizontalLayout {
                                         padding-left: 6px; padding-right: 6px;
                                         padding-top: 2px; padding-bottom: 2px;
-                                        Text { text: "⚡ NVMe Crypto Sanitize Available"; color: #00bfa5; font-size: 10px; font-weight: 700; }
+                                        Text { text: "NVMe Crypto Sanitize Available"; color: #00bfa5; font-size: 10px; font-weight: 700; }
                                     }
                                 }
                             }
@@ -616,11 +619,11 @@ export component MainWindow inherits Window {
                                     spacing: 6px;
                                     HorizontalLayout {
                                         Text {
-                                            text: root.selected_method == "NIST 800-88 Cryptographic Erase (Crypto Erase)" ? "⚡ Cryptographic Erase (Instant Hardware Sanitization)"
-                                                : root.selected_method == "Quick Format / Fast Block Discard (TRIM / BLKDISCARD)" ? "⚡ Quick Format (Fast Block Discard & Table Zeroing)"
-                                                : root.selected_method == "NIST 800-88 Purge (ChaCha20 O_DIRECT)" ? "🔒 NIST Purge (Cryptographic PRNG Overwrite)"
-                                                : root.selected_method == "NIST 800-88 Clear (Single Pass Zero)" ? "🧹 NIST Clear (Single-Pass Zero Fill)"
-                                                : "🛡️ DoD 5220.22-M (3-Pass Overwrite & Verify)";
+                                            text: root.selected_method == "NIST 800-88 Cryptographic Erase (Crypto Erase)"? "Cryptographic Erase (Instant Hardware Sanitization)"
+                                                : root.selected_method == "Quick Format / Fast Block Discard (TRIM / BLKDISCARD)"? "Quick Format (Fast Block Discard & Table Zeroing)"
+                                                : root.selected_method == "NIST 800-88 Purge (ChaCha20 O_DIRECT)"? "NIST Purge (Cryptographic PRNG Overwrite)"
+                                                : root.selected_method == "NIST 800-88 Clear (Single Pass Zero)"? "NIST Clear (Single-Pass Zero Fill)"
+                                                : "DoD 5220.22-M (3-Pass Overwrite & Verify)";
                                             color: #80c0ff;
                                             font-weight: 700;
                                             font-size: 12px;
@@ -628,10 +631,10 @@ export component MainWindow inherits Window {
                                         }
                                         Rectangle { horizontal-stretch: 1; }
                                         Text {
-                                            text: root.selected_method == "NIST 800-88 Cryptographic Erase (Crypto Erase)" ? "Est. Time: < 5 sec"
-                                                : root.selected_method == "Quick Format / Fast Block Discard (TRIM / BLKDISCARD)" ? "Est. Time: < 10 sec"
-                                                : root.selected_method == "NIST 800-88 Clear (Single Pass Zero)" ? "Est. Time: ~15 min / 100 GB"
-                                                : root.selected_method == "NIST 800-88 Purge (ChaCha20 O_DIRECT)" ? "Est. Time: ~20 min / 100 GB"
+                                            text: root.selected_method == "NIST 800-88 Cryptographic Erase (Crypto Erase)"? "Est. Time: < 5 sec"
+                                                : root.selected_method == "Quick Format / Fast Block Discard (TRIM / BLKDISCARD)"? "Est. Time: < 10 sec"
+                                                : root.selected_method == "NIST 800-88 Clear (Single Pass Zero)"? "Est. Time: ~15 min / 100 GB"
+                                                : root.selected_method == "NIST 800-88 Purge (ChaCha20 O_DIRECT)"? "Est. Time: ~20 min / 100 GB"
                                                 : "Est. Time: ~60 min / 100 GB";
                                             color: #ffcc00;
                                             font-size: 11px;
@@ -639,10 +642,10 @@ export component MainWindow inherits Window {
                                         }
                                     }
                                     Text {
-                                        text: root.selected_method == "NIST 800-88 Cryptographic Erase (Crypto Erase)" ? "Triggers controller-level NVMe/ATA SANITIZE / Crypto Scramble to destroy the Media Encryption Key (MEK). Renders all physical and spare blocks unreadable in seconds without wearing flash cells. Meets NIST SP 800-88 Rev. 1 Purge standard for encrypted media."
-                                            : root.selected_method == "Quick Format / Fast Block Discard (TRIM / BLKDISCARD)" ? "Sends BLKDISCARD / TRIM commands across all logical blocks to immediately unmap and deallocate flash memory, while explicitly zeroing partition headers (GPT/MBR) and filesystem structures for immediate reuse."
-                                            : root.selected_method == "NIST 800-88 Purge (ChaCha20 O_DIRECT)" ? "Generates a cryptographically strong pseudorandom stream via ChaCha20, writing via direct unbuffered I/O (O_DIRECT | O_SYNC) across every user-accessible sector to permanently overwrite media."
-                                            : root.selected_method == "NIST 800-88 Clear (Single Pass Zero)" ? "Overwrites all addressable storage blocks with binary zeroes (0x00) across the entire capacity to ensure logical data cannot be retrieved by standard read tools."
+                                        text: root.selected_method == "NIST 800-88 Cryptographic Erase (Crypto Erase)"? "Triggers controller-level NVMe/ATA SANITIZE / Crypto Scramble to destroy the Media Encryption Key (MEK). Renders all physical and spare blocks unreadable in seconds without wearing flash cells. Meets NIST SP 800-88 Rev. 1 Purge standard for encrypted media."
+                                            : root.selected_method == "Quick Format / Fast Block Discard (TRIM / BLKDISCARD)"? "Sends BLKDISCARD / TRIM commands across all logical blocks to immediately unmap and deallocate flash memory, while explicitly zeroing partition headers (GPT/MBR) and filesystem structures for immediate reuse."
+                                            : root.selected_method == "NIST 800-88 Purge (ChaCha20 O_DIRECT)"? "Generates a cryptographically strong pseudorandom stream via ChaCha20, writing via direct unbuffered I/O (O_DIRECT | O_SYNC) across every user-accessible sector to permanently overwrite media."
+                                            : root.selected_method == "NIST 800-88 Clear (Single Pass Zero)"? "Overwrites all addressable storage blocks with binary zeroes (0x00) across the entire capacity to ensure logical data cannot be retrieved by standard read tools."
                                             : "3-pass military specification: Pass 1 writes zeroes (0x00), Pass 2 writes complementary ones (0xFF), Pass 3 writes a random pattern, followed by a read-verification pass.";
                                         color: #b0c4de;
                                         font-size: 11px;
@@ -653,7 +656,7 @@ export component MainWindow inherits Window {
                         }
 
                         // ── Progress bar (visible when phase != idle) ─
-                        if root.devices[root.selected_device_index].phase != "idle" : VerticalLayout {
+                        if root.devices[root.selected_device_index].phase != "idle": VerticalLayout {
                             spacing: 8px;
                             HorizontalLayout {
                                 Text { text: root.devices[root.selected_device_index].status; color: #dddddd; font-size: 13px; }
@@ -670,7 +673,7 @@ export component MainWindow inherits Window {
                         }
 
                         // ── Carving audit panel (Verifying phase) ──────────
-                        if root.devices[root.selected_device_index].phase == "verifying" : Rectangle {
+                        if root.devices[root.selected_device_index].phase == "verifying": Rectangle {
                             background: #0d1f35; border-radius: 8px;
                             border-width: 1px; border-color: #1a4a80;
                             VerticalLayout {
@@ -689,7 +692,7 @@ export component MainWindow inherits Window {
                         }
 
                         // ── Certificate panel (done phase) ──────────────────
-                        if root.devices[root.selected_device_index].phase == "done" : Rectangle {
+                        if root.devices[root.selected_device_index].phase == "done": Rectangle {
                             background: #0d250d; border-radius: 10px;
                             border-width: 1px; border-color: #4CAF50;
                             VerticalLayout {
@@ -698,11 +701,11 @@ export component MainWindow inherits Window {
                                 spacing: 12px;
 
                                 Text {
-                                    text: "✅  Sanitization Verified — Carving Score: 0 Anomalies";
+                                    text: "OK  Sanitization Verified — Carving Score: 0 Anomalies";
                                     color: #4CAF50; font-size: 15px; font-weight: 700;
                                 }
                                 Text {
-                                    text: "Completed via " + root.selected_method + "\nCryptographic verification passed. Compliance certificate can now be generated.";
+                                    text: "Completed via "+ root.selected_method + "\nCryptographic verification passed. Compliance certificate can now be generated.";
                                     color: #aaaaaa; font-size: 12px; wrap: word-wrap;
                                 }
 
@@ -734,7 +737,7 @@ export component MainWindow inherits Window {
                                         );
                                     }
                                 }
-                                if root.cert_status_msg != "" : Text {
+                                if root.cert_status_msg != "": Text {
                                     text: root.cert_status_msg;
                                     color: #80d080; font-size: 12px; wrap: word-wrap;
                                 }
@@ -742,12 +745,12 @@ export component MainWindow inherits Window {
                         }
 
                         // ── Auth / challenge section (idle phase only) ──────
-                        if root.devices[root.selected_device_index].phase == "idle" : VerticalLayout {
+                        if root.devices[root.selected_device_index].phase == "idle": VerticalLayout {
                             spacing: 12px;
 
-                            if root.active_challenge == "" : Button {
-                                text: root.selected_method == "NIST 800-88 Cryptographic Erase (Crypto Erase)" ? "🔐  Authorize Cryptographic Erase"
-                                    : root.selected_method == "Quick Format / Fast Block Discard (TRIM / BLKDISCARD)" ? "⚡  Authorize Quick Format / Discard"
+                            if root.active_challenge == "": Button {
+                                text: root.selected_method == "NIST 800-88 Cryptographic Erase (Crypto Erase)"? "🔐  Authorize Cryptographic Erase"
+                                    : root.selected_method == "Quick Format / Fast Block Discard (TRIM / BLKDISCARD)"? " Authorize Quick Format / Discard"
                                     : "🔐  Authorize Secure Wipe";
                                 primary: true; height: 44px;
                                 clicked => {
@@ -755,7 +758,7 @@ export component MainWindow inherits Window {
                                 }
                             }
 
-                            if root.active_challenge != "" : Rectangle {
+                            if root.active_challenge != "": Rectangle {
                                 background: #200808; border-radius: 10px;
                                 border-width: 1px; border-color: #c62828;
                                 VerticalLayout {
@@ -780,9 +783,9 @@ export component MainWindow inherits Window {
                                         text <=> root.challenge_input;
                                     }
                                     Button {
-                                        text: root.selected_method == "NIST 800-88 Cryptographic Erase (Crypto Erase)" ? "⚡  EXECUTE CRYPTO ERASE"
-                                            : root.selected_method == "Quick Format / Fast Block Discard (TRIM / BLKDISCARD)" ? "⚡  EXECUTE QUICK FORMAT"
-                                            : "⚡  EXECUTE WIPE";
+                                        text: root.selected_method == "NIST 800-88 Cryptographic Erase (Crypto Erase)"? " EXECUTE CRYPTO ERASE"
+                                            : root.selected_method == "Quick Format / Fast Block Discard (TRIM / BLKDISCARD)"? " EXECUTE QUICK FORMAT"
+                                            : " EXECUTE WIPE";
                                         primary: true;
                                         enabled: root.challenge_input == root.active_challenge;
                                         clicked => {
