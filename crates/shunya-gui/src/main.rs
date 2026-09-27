@@ -430,5 +430,57 @@ fn main() -> Result<(), slint::PlatformError> {
         });
     });
 
+    // ── 7. Start recovery ──────────────────────────────────────────────
+    let rt_recover = rt.clone();
+    let ui_recover = ui.as_weak();
+    ui.on_start_recovery(move |device_id, output_dir, profile| {
+        let dev_id = device_id.to_string();
+        let out_dir = output_dir.to_string();
+        let prof = profile.to_string();
+        let ui_c = ui_recover.clone();
+
+        let _ = slint::invoke_from_event_loop(move || {
+            if let Some(ui) = ui_c.upgrade() {
+                ui.set_recovery_status("scanning".into());
+            }
+        });
+
+        let ui_c = ui_recover.clone();
+        rt_recover.spawn(async move {
+            match shunya_proto::v1::recovery_service_client::RecoveryServiceClient::connect("http://127.0.0.1:9090").await {
+                Ok(mut client) => {
+                    let req = shunya_proto::v1::StartRecoveryRequest {
+                        source_device_id: dev_id,
+                        output_directory: out_dir,
+                        profile: prof,
+                    };
+                    match client.start_recovery(req).await {
+                        Ok(_) => {
+                            let _ = slint::invoke_from_event_loop(move || {
+                                if let Some(ui) = ui_c.upgrade() {
+                                    ui.set_recovery_status("done".into());
+                                }
+                            });
+                        }
+                        Err(_) => {
+                            let _ = slint::invoke_from_event_loop(move || {
+                                if let Some(ui) = ui_c.upgrade() {
+                                    ui.set_recovery_status("error".into());
+                                }
+                            });
+                        }
+                    }
+                }
+                Err(_) => {
+                    let _ = slint::invoke_from_event_loop(move || {
+                        if let Some(ui) = ui_c.upgrade() {
+                            ui.set_recovery_status("error".into());
+                        }
+                    });
+                }
+            }
+        });
+    });
+
     ui.run()
 }

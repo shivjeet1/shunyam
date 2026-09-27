@@ -87,7 +87,7 @@ func (s *DaemonServer) StartJob(ctx context.Context, req *pb.StartJobRequest) (*
 
 	// Kick off the wipe in the background; StreamEvents will subscribe and relay events.
 	method := req.RequestedMethod
-	go runWipeJob(jobID, method, s.machine)
+	go runWipeJob(jobID, method, s.machine, req)
 
 	return &pb.StartJobResponse{
 		JobId: jobID,

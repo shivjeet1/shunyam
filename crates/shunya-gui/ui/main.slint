@@ -45,6 +45,12 @@ export component MainWindow inherits Window {
     in-out property <string> verify_manifest_json: "";
     in-out property <string> verify_error_message: "";
 
+    // Recovery panel state
+    in-out property <string> recovery_output_dir: "/tmp/shunya_recovery";
+    in-out property <string> recovery_profile: "Standard Scan (PhotoRec + Validation)";
+    in-out property <string> recovery_status: "idle"; // idle, scanning, done, error
+    callback start_recovery(string, string, string); // device_id, output_dir, profile
+
     callback start_daemon();
     callback request_challenge(string);
     callback start_wipe(string, string, string);  // (device_id, challenge, method)
@@ -207,6 +213,42 @@ export component MainWindow inherits Window {
                     }
                 }
             }
+
+            // Third Card: Recovery Console
+            Rectangle {
+                horizontal-stretch: 1;
+                max-width: 420px;
+                background: #2a2215;
+                border-radius: 8px;
+                border-width: 1px;
+                border-color: #4a3a20;
+                VerticalLayout {
+                    alignment: center; spacing: 16px;
+                    padding: 40px;
+                    
+                    Text {
+                        text: "File Recovery";
+                        color: #fbbf24; font-size: 20px; font-weight: 600;
+                        horizontal-alignment: center;
+                    }
+                    Text {
+                        text: "Scan storage media for recoverable files using advanced carving techniques.";
+                        color: #a3a3a3; font-size: 14px;
+                        horizontal-alignment: center;
+                        wrap: word-wrap;
+                    }
+                    
+                    HorizontalLayout {
+                        alignment: center;
+                        padding-top: 16px;
+                        Button {
+                            text: "Start Recovery Scan";
+                            primary: true; height: 36px; width: 220px;
+                            clicked => { root.ui_state = "recover"; }
+                        }
+                    }
+                }
+            }
         }
 
         // ── STATE: VERIFY ────────────────────────────────────────────────────
@@ -333,6 +375,146 @@ export component MainWindow inherits Window {
                                 Text { text: "❌ Verification FAILED"; color: #ef4444; font-weight: 700; font-size: 14px; }
                                 Text { text: root.verify_error_message; color: #ffb3b3; font-size: 12px; wrap: word-wrap; }
                             }
+                        }
+                    }
+                }
+            }
+        }
+
+        // ── STATE: RECOVER ───────────────────────────────────────────────────
+        if root.ui_state == "recover": HorizontalLayout {
+            spacing: 20px;
+
+            // ── Left pane: device list ───────────────────────────────────────
+            Rectangle {
+                horizontal-stretch: 38;
+                min-width: 250px;
+                background: #1a1a1a; border-radius: 12px;
+                border-width: 1px; border-color: #2a2a2a;
+
+                VerticalLayout {
+                    padding: 16px; spacing: 12px;
+                    HorizontalLayout {
+                        alignment: space-between;
+                        Text {
+                            text: "Select Drive to Recover";
+                            color: #ffffff; font-size: 16px; font-weight: 700;
+                            vertical-alignment: center;
+                        }
+                        Button {
+                            text: "Refresh";
+                            clicked => { root.refresh_drives(); }
+                        }
+                    }
+                    if root.devices.length == 0 : Text {
+                        text: "No storage devices detected.";
+                        color: #555555; font-size: 13px;
+                    }
+                    ScrollView {
+                        VerticalLayout {
+                            spacing: 8px;
+                            for device[i] in root.devices : Rectangle {
+                                height: 60px;
+                                background: i == root.selected_device_index ? #1a3050 : #222222;
+                                border-radius: 8px;
+                                border-width: 1px;
+                                border-color: i == root.selected_device_index ? #3a7ab7 : transparent;
+                                HorizontalLayout {
+                                    padding-left: 12px; padding-right: 12px; spacing: 10px;
+                                    VerticalLayout {
+                                        alignment: center;
+                                        Text { text: device.id; color: #ffffff; font-size: 13px; font-weight: 700; }
+                                        Text { text: device.capacity + " - "+ device.model; color: #aaaaaa; font-size: 11px; }
+                                    }
+                                }
+                                TouchArea {
+                                    clicked => { 
+                                        root.selected_device_index = i; 
+                                        root.recovery_status = "idle";
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    Button {
+                        text: "Back to Main Menu";
+                        clicked => { root.ui_state = "ready"; }
+                    }
+                }
+            }
+
+            // ── Right pane: Recovery context ────────────────────────────
+            Rectangle {
+                horizontal-stretch: 62;
+                min-width: 400px;
+                background: #1a1a1a; border-radius: 12px;
+                border-width: 1px; border-color: #2a2a2a;
+                VerticalLayout {
+                    padding: 30px; spacing: 20px;
+                    if root.selected_device_index == -1 : VerticalLayout {
+                        alignment: center;
+                        Text {
+                            text: "Select a drive from the list\nto configure recovery options.";
+                            color: #777777; font-size: 14px; horizontal-alignment: center;
+                        }
+                    }
+                    if root.selected_device_index != -1 : VerticalLayout {
+                        spacing: 20px;
+                        Text {
+                            text: "File Recovery Options";
+                            color: #ffffff; font-size: 18px; font-weight: 700;
+                        }
+                        
+                        Rectangle {
+                            background: #111111; border-radius: 6px; border-width: 1px; border-color: #333333;
+                            VerticalLayout {
+                                padding: 16px; spacing: 12px;
+                                Text { text: "Target Device: "+ root.devices[root.selected_device_index].id; color: #ffffff; font-weight: 600; font-size: 14px; }
+                                Text { text: "Device Model: "+ root.devices[root.selected_device_index].model; color: #aaaaaa; font-size: 13px; }
+                            }
+                        }
+
+                        Text { text: "Recovery Profile:"; color: #aaaaaa; font-size: 13px; }
+                        HorizontalLayout {
+                            spacing: 12px;
+                            ComboBox {
+                                horizontal-stretch: 1;
+                                model: [
+                                    "Quick Scan (Header Detection Only)",
+                                    "Standard Scan (PhotoRec + Validation)",
+                                    "Deep Scan (Bifragment Gap Carving)"
+                                ];
+                                current-value <=> root.recovery_profile;
+                            }
+                            Text {
+                                text: root.recovery_profile == "Quick Scan (Header Detection Only)" ? "Est. Time: ~5 min / 100 GB"
+                                    : root.recovery_profile == "Standard Scan (PhotoRec + Validation)" ? "Est. Time: ~30 min / 100 GB"
+                                    : "Est. Time: ~2 hours / 100 GB";
+                                color: #ffcc00;
+                                font-size: 12px;
+                                vertical-alignment: center;
+                            }
+                        }
+
+                        Text { text: "Output Directory:"; color: #aaaaaa; font-size: 13px; }
+                        LineEdit {
+                            text <=> root.recovery_output_dir;
+                        }
+
+                        if root.recovery_status == "idle" || root.recovery_status == "error" : Button {
+                            text: "Start Recovery";
+                            primary: true; height: 40px;
+                            clicked => { 
+                                root.start_recovery(root.devices[root.selected_device_index].id, root.recovery_output_dir, root.recovery_profile); 
+                            }
+                        }
+                        if root.recovery_status == "scanning" : Text {
+                            text: "Scanning device for recoverable files...";
+                            color: #ffcc00; font-size: 14px; font-weight: 600; horizontal-alignment: center;
+                        }
+                        if root.recovery_status == "done" : Text {
+                            text: "Recovery scan completed.";
+                            color: #4ade80; font-size: 14px; font-weight: 600; horizontal-alignment: center;
                         }
                     }
                 }

@@ -1,6 +1,6 @@
 # Shunya Secure Wipe Platform
 
-Shunya is an enterprise-grade secure wipe platform designed to cryptographically and physically sanitize storage media (NVMe, SATA, USB). It enforces NIST 800-88 compliance workflows, verifies every purge via deep structural file-carving heuristics, and outputs a hardware-signed cryptographic PDF certificate of destruction.
+Shunya is an enterprise-grade secure wipe platform designed to cryptographically and physically sanitize storage media (NVMe, SATA, USB). It enforces NIST 800-88 compliance workflows, verifies every purge via deep structural file-carving heuristics, and outputs a hardware-signed cryptographic PDF certificate of destruction. It also includes an Advanced File Recovery utility powered by PhotoRec for recovering fragmented files with validation and deep carving capabilities.
 
 ---
 
@@ -110,17 +110,19 @@ make uninstall
 │  Setup       │────▶│  Ready           │────▶│  Active              │
 │  (Offline)   │     │  (Daemon Live)   │     │  (Main Application)  │
 └──────────────┘     └──────────────────┘     └──────────────────────┘
-                                                        │
-                           ┌────────────────────────────┤
-                           ▼                            ▼
-                    Select Device              Wipe Method Dropdown
-                    Authorize (Challenge)      (NIST Crypto Erase / Quick Format / Purge / Clear / DoD)
-                    Execute Wipe                        │
-                           │                            ▼
-                           ├──── Wiping ──── Live progress stream
-                           ├──── Verifying ── Deep carving audit (shunya-carve)
-                           └──── Done ──── Generate Compliance Certificate
-                                           (SmartCard-signed PDF via shunya-cert)
+                               │
+            ┌──────────────────┴──────────────────┐
+            ▼                                     ▼
+      Wipe/Sanitize                         File Recovery
+            │                                     │
+            ▼                                     ▼
+      Select Device                         Select Device
+      Authorize (Challenge)                 Select Recovery Profile
+      Execute Wipe                          Execute Scan
+            │                                     │
+            ├──── Wiping                          ├──── Scanning
+            ├──── Verifying                       └──── Done
+            └──── Done ── Generate Cert
 ```
 
 ### Physical Presence Challenge

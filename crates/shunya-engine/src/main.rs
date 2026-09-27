@@ -54,6 +54,15 @@ enum Commands {
         #[arg(long)]
         device: String,
     },
+    /// Recover files from a storage device
+    Recover {
+        #[arg(long)]
+        device: String,
+        #[arg(long)]
+        output: String,
+        #[arg(long)]
+        profile: String,
+    },
 }
 
 fn emit_event(job_id: &str, step: &str, status: &str, progress: f32, message: &str) -> io::Result<()> {
@@ -216,6 +225,29 @@ fn main() {
                 Err(e) => {
                     eprintln!("Failed to enumerate devices: {:?}", e);
                     exit(1);
+                }
+            }
+        }
+        Commands::Recover { device, output, profile } => {
+            println!("Starting recovery scan on {} with profile {}", device, profile);
+            println!("Output directory: {}", output);
+            if let Err(e) = fs::create_dir_all(&output) {
+                eprintln!("Failed to create output directory: {}", e);
+                exit(1);
+            }
+            match std::process::Command::new("photorec")
+                .arg("/d").arg(&output)
+                .arg("/cmd").arg(&device).arg("search")
+                .status() 
+            {
+                Ok(status) if status.success() => {
+                    println!("Recovery scan complete");
+                }
+                Ok(status) => {
+                    eprintln!("Warning: photorec exited with non-zero status: {}", status);
+                }
+                Err(e) => {
+                    eprintln!("Warning: photorec execution failed: {}. Is it installed?", e);
                 }
             }
         }
