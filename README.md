@@ -196,10 +196,4 @@ Override the install prefix:
 make install PREFIX=/usr/local   # installs to /usr/local/bin
 ```
 
----
-
-## Known Issues & Notes
-
-- `shunya-engine generate-cert` requires a PCSC-compatible SmartCard reader and a PIV-provisioned token (e.g. YubiKey 5). Without hardware, the engine falls back to a software mock signature.
-- The daemon logs to stderr. Redirect with `shunyad 2>/tmp/shunyad.log` for quiet background operation.
 
