@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Terminal, HardDrive, Shield, FileText, ChevronDown, Play, Database } from 'lucide-react';
+import { Terminal, HardDrive, Shield, Folder, ChevronDown, Play, Database } from 'lucide-react';
 
 // --- Components inline to bypass import errors ---
 
@@ -30,7 +30,7 @@ const CodeBlock = ({ code, language = 'bash', filename = '' }) => {
         </button>
       </div>
       <pre className="p-4 overflow-x-auto">
-        <code className="text-sm text-zinc-300">{code}</code>
+        <code className="text-sm text-zinc-300 whitespace-pre">{code}</code>
       </pre>
     </div>
   );
@@ -105,7 +105,7 @@ export default function App() {
             Shunya Secure Wipe.
           </h1>
           <p className="text-zinc-400 max-w-2xl leading-relaxed">
-            Enterprise-grade secure wipe platform designed to cryptographically and physically sanitize storage media. Enforces NIST 800-88 compliance workflows with deep structural carving heuristics and hardware-signed certificates.
+            Enterprise-grade secure wipe platform designed to cryptographically and physically sanitize storage media (NVMe, SATA, USB). Enforces NIST 800-88 compliance workflows, verifies every purge via deep structural file-carving heuristics, and outputs a hardware-signed cryptographic PDF certificate of destruction.
           </p>
           <div className="flex items-center space-x-4 pt-2">
             <a href="#build" className="px-4 py-2 bg-white text-black font-semibold text-sm hover:bg-zinc-200 transition-colors flex items-center space-x-2">
@@ -115,8 +115,8 @@ export default function App() {
           </div>
         </section>
 
-        <section id="architecture" className="scroll-mt-20">
-          <SectionHeading title="Architecture Setup" />
+        <section id="components" className="scroll-mt-20">
+          <SectionHeading title="System Components" />
           <p className="text-zinc-400 mb-6 text-sm max-w-2xl">
             A three-tier architecture ensuring privilege separation, high-performance I/O, and cross-platform native UI.
           </p>
@@ -150,30 +150,71 @@ export default function App() {
           </div>
         </section>
 
-        <section>
-          <SectionHeading title="Notes & Decisions" />
+        <section id="architecture">
+          <SectionHeading title="Architecture Data Flow" />
+          <p className="text-zinc-400 mb-6 text-sm max-w-2xl">
+            The unprivileged GUI issues commands to the local Go daemon over gRPC, which in turn orchestrates the raw block-level operations via the Rust engine binary.
+          </p>
+          <CodeBlock
+            language="text"
+            filename="Architecture Topology"
+            code={`shunya-gui  ──gRPC──▶  shunyad (Go)  ──subprocess──▶  shunya-engine (Rust)
+   (Slint)            127.0.0.1:9090     stdin/stdout      (O_DIRECT I/O)
+                           │                                     │
+                       SQLite DB                          shunya-carve
+                      /tmp/shunya.db                     shunya-cert (PIV)`}
+          />
+        </section>
+
+        <section id="workflow">
+          <SectionHeading title="Wipe & Recovery Workflow" />
+          <CodeBlock
+            language="text"
+            filename="GUI States"
+            code={`┌──────────────┐     ┌──────────────────┐     ┌──────────────────────┐
+│  Setup       │────▶│  Ready           │────▶│  Active              │
+│  (Offline)   │     │  (Daemon Live)   │     │  (Main Application)  │
+└──────────────┘     └──────────────────┘     └──────────────────────┘
+                               │
+            ┌──────────────────┴──────────────────┐
+            ▼                                     ▼
+      Wipe/Sanitize                         File Recovery
+            │                                     │
+            ▼                                     ▼
+      Select Device                         Select Device
+      Authorize (Challenge)                 Select Recovery Profile
+      Execute Wipe                          Execute Scan
+            │                                     │
+            ├──── Wiping                          ├──── Scanning
+            ├──── Verifying                       └──── Done
+            └──── Done ── Generate Cert`}
+          />
+        </section>
+
+        <section id="features">
+          <SectionHeading title="Security Principles & Wipe Methods" />
           <div className="space-y-6 text-sm text-zinc-400 border-l border-zinc-800 pl-6 ml-2">
+            <div>
+              <strong className="text-zinc-200 block mb-1">NIST 800-88 Compliant Sanitization</strong>
+              Supports hardware-level Cryptographic Erase (NVMe/SATA Sanitize), Quick Format, NIST Purge (ChaCha20 O_DIRECT), NIST Clear, and DoD 5220.22-M 3-pass overwrite.
+            </div>
             <div>
               <strong className="text-zinc-200 block mb-1">Physical Presence Enforcement</strong>
               Before any destructive wipe is authorized, the daemon issues a one-time 4-byte hex challenge string. The operator must type it verbatim into the GUI. This prevents remote or automated execution.
             </div>
             <div>
-              <strong className="text-zinc-200 block mb-1">Zero Clipboard Leakage</strong>
-              Challenge codes are generated in-memory and never written to disk or the system clipboard.
-            </div>
-            <div>
-              <strong className="text-zinc-200 block mb-1">Polkit (pkexec) Integration</strong>
-              The GUI automatically handles launching the Go daemon with necessary root privileges using Polkit if the daemon isn't already running.
+              <strong className="text-zinc-200 block mb-1">Cryptographic Auditability</strong>
+              Every wipe produces a hardware-signed JSON + PDF manifest using a SmartCard PIV applet (e.g. YubiKey 5). Deep carving via <code>shunya-carve</code> verifies the absence of residual data (SOI/EOI analysis).
             </div>
           </div>
         </section>
 
         <section id="build" className="scroll-mt-20">
-          <SectionHeading title="Installation & Build" />
+          <SectionHeading title="Build Requirements & Installation" />
+          <p className="text-sm text-zinc-400 mb-4 max-w-2xl">
+            Ensure you have Go (1.20+) and Rust (stable) installed, along with <code>pcsc-lite</code> headers (e.g. <code>libpcsclite-dev</code> on Debian) and <code>libclang</code>.
+          </p>
           <div className="max-w-2xl space-y-6">
-            <p className="text-sm text-zinc-400">
-              Ensure you have Go (1.20+) and Rust (stable) installed, along with <code>pcsc-lite</code> headers (e.g. <code>libpcsclite-dev</code> on Debian).
-            </p>
             <div>
               <h3 className="text-zinc-200 font-semibold mb-2 text-sm">Build Everything</h3>
               <CodeBlock 
@@ -182,10 +223,10 @@ export default function App() {
               />
             </div>
             <div>
-              <h3 className="text-zinc-200 font-semibold mb-2 text-sm">Install to ~/.local/bin</h3>
+              <h3 className="text-zinc-200 font-semibold mb-2 text-sm">Install System-Wide</h3>
               <CodeBlock 
                 filename="Terminal"
-                code={`$ make install`} 
+                code={`# Copies shunyad, shunya-engine, and shunya-gui to ~/.local/bin\n$ make install`} 
               />
             </div>
           </div>
@@ -195,7 +236,7 @@ export default function App() {
           <SectionHeading title="Execution" />
           <div className="max-w-2xl space-y-6">
             <p className="text-sm text-zinc-400">
-              The GUI can automatically manage the daemon lifecycle if Polkit is available.
+              The GUI can automatically manage the daemon lifecycle if Polkit is available on your system.
             </p>
             <div>
               <h3 className="text-zinc-200 font-semibold mb-2 text-sm">Option A: Launch via GUI (Recommended)</h3>
