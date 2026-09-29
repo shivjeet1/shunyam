@@ -132,7 +132,7 @@ func ExecuteBlkdiscard(devicePath string, secure bool, emit EmitFunc, jobID stri
 }
 
 func ExecuteZeroFill(devicePath string, capacityBytes uint64, emit EmitFunc, jobID string) error {
-	cmd := exec.Command("dd", "if=/dev/zero", "of="+devicePath, "bs=4M", "status=progress", "conv=fdatasync")
+	cmd := exec.Command("dd", "if=/dev/zero", "of="+devicePath, "bs=4M", "status=progress", "conv=fsync")
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
 		return err
@@ -160,6 +160,7 @@ func ExecuteZeroFill(devicePath string, capacityBytes uint64, emit EmitFunc, job
 	})
 
 	re := regexp.MustCompile(`(\d+) bytes`)
+	var lastErrLine string
 
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -174,8 +175,16 @@ func ExecuteZeroFill(devicePath string, capacityBytes uint64, emit EmitFunc, job
 				progress = float32(bytesCopied) * 100.0 / float32(capacityBytes)
 			}
 			emit(jobID, "Wiping", "InProgress", "Zero filling...", progress)
+		} else {
+			lastErrLine = line
 		}
 	}
 
-	return cmd.Wait()
+	if err := cmd.Wait(); err != nil {
+		if lastErrLine != "" {
+			return fmt.Errorf("dd failed: %w (stderr: %s)", err, lastErrLine)
+		}
+		return fmt.Errorf("dd failed: %w", err)
+	}
+	return nil
 }
