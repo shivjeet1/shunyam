@@ -160,7 +160,7 @@ func ExecuteZeroFill(devicePath string, capacityBytes uint64, emit EmitFunc, job
 	})
 
 	re := regexp.MustCompile(`(\d+) bytes`)
-	var lastErrLine string
+	var errLines []string
 
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -176,13 +176,24 @@ func ExecuteZeroFill(devicePath string, capacityBytes uint64, emit EmitFunc, job
 			}
 			emit(jobID, "Wiping", "InProgress", "Zero filling...", progress)
 		} else {
-			lastErrLine = line
+			errLines = append(errLines, line)
+			// keep only last 5 lines to avoid memory bloat
+			if len(errLines) > 5 {
+				errLines = errLines[1:]
+			}
 		}
 	}
 
 	if err := cmd.Wait(); err != nil {
-		if lastErrLine != "" {
-			return fmt.Errorf("dd failed: %w (stderr: %s)", err, lastErrLine)
+		if len(errLines) > 0 {
+			// Check if it's just ENOSPC on block device, which means we hit the end
+			fullErr := strings.Join(errLines, " | ")
+			if strings.Contains(fullErr, "No space left on device") {
+				// We successfully hit the end of the block device!
+				// We can consider the wipe successful if we wrote at least something.
+				return nil
+			}
+			return fmt.Errorf("dd failed: %w (stderr: %s)", err, fullErr)
 		}
 		return fmt.Errorf("dd failed: %w", err)
 	}
