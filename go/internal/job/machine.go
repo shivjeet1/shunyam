@@ -66,3 +66,8 @@ func (m *Machine) SimulateExecution(jobID string) {
 	m.Transition(jobID, StateDone, 100.0)
 	fmt.Printf("[Job %s] Execution completed successfully.\n", jobID)
 }
+
+// GetState returns the current state, progress, and error message of a job
+func (m *Machine) GetState(jobID string) (string, float64, string, error) {
+	return m.store.GetJobState(jobID)
+}

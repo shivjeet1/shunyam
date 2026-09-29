@@ -39,6 +39,15 @@ func subscribe(jobID string) chan *pb.JobEvent {
 	return ch
 }
 
+func closeJobChannels(jobID string) {
+	eventBus.Lock()
+	defer eventBus.Unlock()
+	for _, ch := range eventBus.subs[jobID] {
+		close(ch)
+	}
+	delete(eventBus.subs, jobID)
+}
+
 func publish(jobID string, evt *pb.JobEvent) {
 	eventBus.RLock()
 	defer eventBus.RUnlock()
@@ -62,6 +71,8 @@ func emit(jobID, step, status, msg string, progress float32) {
 }
 
 func runWipeJob(jobID string, method string, machine *job.Machine, req *pb.StartJobRequest) {
+	defer closeJobChannels(jobID)
+
 	if method == "" {
 		method = "Single Pass"
 	}
@@ -115,6 +126,42 @@ func runWipeJob(jobID string, method string, machine *job.Machine, req *pb.Start
 
 func (s *DaemonServer) StreamEvents(req *pb.StreamEventsRequest, stream pb.JobService_StreamEventsServer) error {
 	ch := subscribe(req.JobId)
+	defer func() {
+		// Clean up subscription if we exit early
+		eventBus.Lock()
+		subs := eventBus.subs[req.JobId]
+		for i, sub := range subs {
+			if sub == ch {
+				eventBus.subs[req.JobId] = append(subs[:i], subs[i+1:]...)
+				break
+			}
+		}
+		eventBus.Unlock()
+	}()
+
+	// Always send current state immediately to avoid missing fast transitions
+	state, prog, msg, err := s.machine.GetState(req.JobId)
+	if err == nil {
+		evt := &pb.JobEvent{
+			JobId:           req.JobId,
+			StepName:        state,
+			ProgressPercent: float32(prog),
+			Status:          "InProgress",
+			Message:         msg,
+		}
+		if state == "Failed" {
+			evt.Status = "Failed"
+		} else if state == "Done" {
+			evt.Status = "Success"
+		}
+		if err := stream.Send(evt); err != nil {
+			return err
+		}
+		if state == "Done" || state == "Failed" {
+			return nil
+		}
+	}
+
 	for evt := range ch {
 		if err := stream.Send(evt); err != nil {
 			return err
