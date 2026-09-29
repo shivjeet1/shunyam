@@ -2,14 +2,14 @@ use std::process::Command;
 use std::fs;
 use std::path::Path;
 
-/// Provisions a tiny FAT32 partition at the end of the wiped drive and stores the certs.
+/// Provisions a tiny ISO9660 partition at the start of the wiped drive and stores the certs.
 pub fn store_certificate_on_drive(
     device: &str,
     json_content: &str,
     pdf_bytes: &[u8],
     signature: &[u8],
 ) -> Result<(), String> {
-    eprintln!("Partitioning 20MB FAT32 certificate store at the end of {}...", device);
+    eprintln!("Partitioning 20MB ISO9660 certificate store at the start of {}...", device);
     
     // Zap existing partition tables
     // 1. Create a 20MB partition at the start of the device (type Microsoft Basic Data) for certs
@@ -25,10 +25,7 @@ pub fn store_certificate_on_drive(
         .spawn()
         .map_err(|e| format!("Failed to spawn sfdisk: {}", e))?;
 
-    let sfdisk_script = "label: gpt
-size=20M, type=EBD0A0A2-B9E5-4433-87C0-68B6B72699C7, attrs=\"60,63\"
-type=EBD0A0A2-B9E5-4433-87C0-68B6B72699C7
-";
+    let sfdisk_script = "label: gpt\nsize=20M, type=EBD0A0A2-B9E5-4433-87C0-68B6B72699C7, attrs=\"60,63\"\ntype=EBD0A0A2-B9E5-4433-87C0-68B6B72699C7\n";
     
     if let Some(mut stdin) = sfdisk_child.stdin.take() {
         stdin.write_all(sfdisk_script.as_bytes()).map_err(|e| format!("Failed to write to sfdisk stdin: {}", e))?;
@@ -41,8 +38,6 @@ type=EBD0A0A2-B9E5-4433-87C0-68B6B72699C7
 
     // Force kernel to re-read partition table
     let _ = Command::new("partprobe").arg(device).status();
-
-    // Give the kernel a moment to re-read the partition table via udevadm
     let _ = Command::new("udevadm").arg("settle").status();
 
     // Construct the partition paths
@@ -52,21 +47,8 @@ type=EBD0A0A2-B9E5-4433-87C0-68B6B72699C7
         (format!("{}1", device), format!("{}2", device))
     };
 
-    eprintln!("Formatting {} as FAT32...", part1_path);
-    // 2. Format Part 1 as FAT32 (Certificates)
-    let mkfs_out = Command::new("mkfs.vfat")
-        .arg("-n")
-        .arg("SHUNYA_CERT")
-        .arg(&part1_path)
-        .output()
-        .map_err(|e| format!("Failed to run mkfs.vfat on cert partition: {}", e))?;
-        
-    if !mkfs_out.status.success() {
-        return Err(format!("mkfs.vfat failed: {}", String::from_utf8_lossy(&mkfs_out.stderr)));
-    }
-
     eprintln!("Formatting {} as exFAT...", part2_path);
-    // 2b. Format Part 2 as exFAT (User Data)
+    // 2. Format Part 2 as exFAT (User Data)
     let mkfs_exfat_out = Command::new("mkfs.exfat")
         .arg("-n")
         .arg("DATA")
@@ -78,63 +60,68 @@ type=EBD0A0A2-B9E5-4433-87C0-68B6B72699C7
         return Err(format!("mkfs.exfat failed (is exfatprogs installed?): {}", String::from_utf8_lossy(&mkfs_exfat_out.stderr)));
     }
 
-    let part_path = part1_path;
-        
-    if !mkfs_out.status.success() {
-        return Err(format!("mkfs.vfat failed: {}", String::from_utf8_lossy(&mkfs_out.stderr)));
-    }
-
-    // 3. Mount it using a dynamic temp directory
+    // 3. Create a temporary directory for ISO contents
     let mktemp_out = Command::new("mktemp")
         .arg("-d")
-        .arg("/tmp/shunya_cert_XXXXXX")
+        .arg("/tmp/shunya_iso_XXXXXX")
         .output()
         .map_err(|e| format!("Failed to run mktemp: {}", e))?;
     if !mktemp_out.status.success() {
         return Err(format!("mktemp failed: {}", String::from_utf8_lossy(&mktemp_out.stderr)));
     }
-    let mount_dir = String::from_utf8_lossy(&mktemp_out.stdout).trim().to_string();
+    let iso_dir = String::from_utf8_lossy(&mktemp_out.stdout).trim().to_string();
     
-    let mount_out = Command::new("mount")
-        .arg(&part_path)
-        .arg(&mount_dir)
-        .output()
-        .map_err(|e| format!("Failed to run mount: {}", e))?;
-        
-    if !mount_out.status.success() {
-        let _ = fs::remove_dir_all(&mount_dir);
-        return Err(format!("mount failed: {}", String::from_utf8_lossy(&mount_out.stderr)));
-    }
-
-    // 4. Write the files
-    let json_path = Path::new(&mount_dir).join("manifest.json");
-    let pdf_path = Path::new(&mount_dir).join("certificate.pdf");
-    let sig_path = Path::new(&mount_dir).join("manifest.sig");
+    // 4. Write the files to the temp directory
+    let dest_json = Path::new(&iso_dir).join("manifest.json");
+    let dest_pdf = Path::new(&iso_dir).join("certificate.pdf");
+    let dest_sig = Path::new(&iso_dir).join("manifest.sig");
 
     let write_res = (|| -> Result<(), std::io::Error> {
-        fs::write(&json_path, json_content)?;
-        fs::write(&pdf_path, pdf_bytes)?;
-        fs::write(&sig_path, signature)?;
+        fs::write(&dest_json, json_content)?;
+        fs::write(&dest_pdf, pdf_bytes)?;
+        fs::write(&dest_sig, signature)?;
         Ok(())
     })();
 
     if let Err(e) = write_res {
-        let _ = Command::new("umount").arg(&mount_dir).output();
-        let _ = fs::remove_dir_all(&mount_dir);
+        let _ = fs::remove_dir_all(&iso_dir);
         return Err(format!("Failed to write files: {}", e));
     }
 
-    // 5. Unmount
-    let umount_out = Command::new("umount")
-        .arg(&mount_dir)
+    // 5. Generate the ISO9660 image
+    let iso_path = format!("{}.iso", iso_dir);
+    let geniso_out = Command::new("genisoimage")
+        .arg("-V").arg("SHUNYA_CERT")
+        .arg("-J").arg("-R")
+        .arg("-o").arg(&iso_path)
+        .arg(&iso_dir)
         .output()
-        .map_err(|e| format!("Failed to run umount: {}", e))?;
+        .map_err(|e| format!("Failed to run genisoimage: {}", e))?;
         
-    let _ = fs::remove_dir_all(&mount_dir);
-
-    if !umount_out.status.success() {
-        return Err(format!("umount failed: {}", String::from_utf8_lossy(&umount_out.stderr)));
+    if !geniso_out.status.success() {
+        let _ = fs::remove_dir_all(&iso_dir);
+        return Err(format!("genisoimage failed: {}", String::from_utf8_lossy(&geniso_out.stderr)));
     }
+
+    // 6. Write ISO directly to the partition using dd
+    eprintln!("Writing ISO9660 to {}...", part1_path);
+    let dd_out = Command::new("dd")
+        .arg(format!("if={}", iso_path))
+        .arg(format!("of={}", part1_path))
+        .arg("bs=1M")
+        .arg("conv=fdatasync")
+        .output()
+        .map_err(|e| format!("Failed to run dd for ISO: {}", e))?;
+        
+    if !dd_out.status.success() {
+        let _ = fs::remove_dir_all(&iso_dir);
+        let _ = fs::remove_file(&iso_path);
+        return Err(format!("dd failed writing ISO: {}", String::from_utf8_lossy(&dd_out.stderr)));
+    }
+
+    // 7. Clean up temp files
+    let _ = fs::remove_dir_all(&iso_dir);
+    let _ = fs::remove_file(&iso_path);
 
     eprintln!("Successfully secured certificates on the wiped block device.");
     Ok(())
