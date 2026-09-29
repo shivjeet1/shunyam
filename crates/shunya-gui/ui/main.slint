@@ -33,7 +33,7 @@ export component MainWindow inherits Window {
     in-out property <int>    selected_device_index: -1;
     in-out property <string> active_challenge: "";
     property  <string>       challenge_input: "";
-    in-out property <string> selected_method: "NIST 800-88 Cryptographic Erase (Crypto Erase)";
+    in-out property <string> selected_method: "Quick Format (Metadata Only)";
 
     // Cert panel state
     in-out property <bool>   cert_generating: false;
@@ -798,7 +798,8 @@ export component MainWindow inherits Window {
                             }
                             ComboBox {
                                 model: [
-                                    "NIST 800-88 Cryptographic Erase (Crypto Erase)",
+                                    "Quick Format (Metadata Only)",
+        "NIST 800-88 Cryptographic Erase (Crypto Erase)",
                                     "Quick Format / Fast Block Discard (TRIM / BLKDISCARD)",
                                     "NIST 800-88 Purge (ChaCha20 O_DIRECT)",
                                     "NIST 800-88 Clear (Single Pass Zero)",

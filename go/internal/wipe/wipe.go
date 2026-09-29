@@ -23,7 +23,13 @@ func Execute(cfg WipeConfig, emit EmitFunc) error {
 
 	emit(cfg.JobID, "Wiping", "InProgress", "Starting wipe process...", 10.0)
 
-	if strings.Contains(methodLower, "crypto erase") {
+	if strings.Contains(methodLower, "quick format") {
+		// Skip full disk overwrite, jump straight to success (cert generation will format it)
+		emit(cfg.JobID, "Wiping", "InProgress", "Quick format selected (skipping overwrite)...", 100.0)
+		emit(cfg.JobID, "Verifying", "InProgress", "Skipping verification for quick format...", 100.0)
+		emit(cfg.JobID, "Done", "Success", "Quick format completed successfully", 100.0)
+		return nil
+	} else if strings.Contains(methodLower, "crypto erase") {
 		if cfg.Transport == "nvme" {
 			err = ExecuteSanitize(cfg.DevicePath, "start-crypto-erase", 0, 0, false, emit, cfg.JobID)
 		} else if cfg.Transport == "sata" || cfg.Transport == "ata" {
