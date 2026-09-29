@@ -20,13 +20,13 @@ func NewRustEngineAdapter(binaryPath string) *RustEngineAdapter {
 // ListDevices triggers the Rust ioctl probing (intended for Windows/macOS).
 func (a *RustEngineAdapter) ListDevices() error {
 	cmd := exec.Command(a.binaryPath, "list-devices")
-	
+
 	// Stream output to logs or parse it
 	_, err := cmd.Output()
 	if err != nil {
 		return err
 	}
-	
+
 	return nil
 }
 

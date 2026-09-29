@@ -61,7 +61,7 @@ func (s *Store) GetJobState(jobID string) (string, float64, string, error) {
 	var progress float64
 	var errMsg sql.NullString
 	query := `SELECT state, progress, error_message FROM jobs WHERE id = ?`
-	
+
 	err := s.db.QueryRow(query, jobID).Scan(&state, &progress, &errMsg)
 	if err != nil {
 		return "", 0, "", err

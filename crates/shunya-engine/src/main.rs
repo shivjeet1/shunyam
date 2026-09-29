@@ -144,12 +144,12 @@ fn main() {
             println!("Certificates generated successfully.");
         }
         Commands::VerifyCert { device } => {
-            println!("Extracting and verifying certificate on {}...", device);
+            eprintln!("Extracting and verifying certificate on {}...", device);
             match cert_storage::verify_certificate_on_drive(&device) {
                 Ok((manifest_json, is_valid)) => {
                     if is_valid {
-                        println!("✅ Certificate VERIFIED successfully!");
-                        println!("Manifest contents:\n{}", manifest_json);
+                        eprintln!("✅ Certificate VERIFIED successfully!");
+                        println!("{}", manifest_json);
                         exit(0);
                     } else {
                         eprintln!("❌ Certificate verification FAILED! Signature does not match or data was tampered.");

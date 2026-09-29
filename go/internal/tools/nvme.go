@@ -6,10 +6,10 @@ import (
 )
 
 type NVMEDevice struct {
-	DevicePath string
-	ModelNumber string `json:"ModelNumber"`
+	DevicePath   string
+	ModelNumber  string `json:"ModelNumber"`
 	SerialNumber string `json:"SerialNumber"`
-	Firmware    string
+	Firmware     string
 }
 
 type NVMEListOutput struct {

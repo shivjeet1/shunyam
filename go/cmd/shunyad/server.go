@@ -18,8 +18,6 @@ import (
 	pb "shunya/shunya/v1"
 )
 
-
-
 // DaemonServer implements the Shunya gRPC services
 type DaemonServer struct {
 	pb.UnimplementedDeviceServiceServer
@@ -71,7 +69,6 @@ func (s *DaemonServer) ListDevices(ctx context.Context, req *pb.ListDevicesReque
 	return &pb.ListDevicesResponse{Devices: devices}, nil
 }
 
-
 func (s *DaemonServer) StartJob(ctx context.Context, req *pb.StartJobRequest) (*pb.StartJobResponse, error) {
 	challengeResponse := req.ChallengeResponse
 	if err := s.gate.CanWipe(req.DeviceId, challengeResponse); err != nil {
@@ -116,7 +113,6 @@ func runServer(dbPath, socketPath string) (*grpc.Server, error) {
 	if err != nil {
 		return nil, err
 	}
-
 
 	grpcServer := grpc.NewServer()
 	srv := &DaemonServer{

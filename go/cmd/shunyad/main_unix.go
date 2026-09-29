@@ -12,7 +12,7 @@ import (
 func main() {
 	log.Println("Starting shunyad (UNIX)...")
 
-	dbPath := "/tmp/shunya.db"
+	dbPath := "/tmp/shunyam-daemon/shunya.db"
 	socketPath := "127.0.0.1:9090"
 
 	server, err := runServer(dbPath, socketPath)

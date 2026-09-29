@@ -59,8 +59,6 @@ func emit(jobID, step, status, msg string, progress float32) {
 	})
 }
 
-
-
 // runWipeJob executes the full wipe lifecycle in the background.
 func runWipeJob(jobID string, method string, machine *job.Machine, req *pb.StartJobRequest) {
 	if method == "" {
@@ -186,21 +184,21 @@ func (s *DaemonServer) GetCertificate(ctx context.Context, req *pb.GetCertificat
 	if err == nil {
 		defer os.RemoveAll(tempDir)
 
-		cmd := exec.Command("shunya-engine", "generate-cert",
+		cmd := exec.Command(tools.FindEngineBinary(), "generate-cert",
 			"--job-id", req.JobId,
 			"--device-serial", "unknown",
 			"--device-model", "unknown",
 			"--capacity", "0",
 			"--operator", "admin",
 			"--out-dir", tempDir)
-		
+
 		if err := cmd.Run(); err == nil {
 			jsonPath := filepath.Join(tempDir, req.JobId+".json")
 			pdfPath := filepath.Join(tempDir, req.JobId+".pdf")
-			
+
 			jsonBytes, errJson := os.ReadFile(jsonPath)
 			pdfBytes, errPdf := os.ReadFile(pdfPath)
-			
+
 			if errJson == nil && errPdf == nil {
 				return &pb.GetCertificateResponse{
 					CertJson:  string(jsonBytes),
@@ -229,20 +227,20 @@ func (s *DaemonServer) GetCertificate(ctx context.Context, req *pb.GetCertificat
 // VerifyCertificate triggers certificate verification via shunya-engine on the target block device.
 func (s *DaemonServer) VerifyCertificate(ctx context.Context, req *pb.VerifyCertificateRequest) (*pb.VerifyCertificateResponse, error) {
 	log.Printf("Verifying certificate on device %s", req.DeviceId)
-	
+
 	// Invoke shunya-engine verify-cert --device req.DeviceId
-	cmd := exec.Command("shunya-engine", "verify-cert", "--device", req.DeviceId)
+	cmd := exec.Command(tools.FindEngineBinary(), "verify-cert", "--device", req.DeviceId)
 	var out bytes.Buffer
 	var stderr bytes.Buffer
 	cmd.Stdout = &out
 	cmd.Stderr = &stderr
 
 	err := cmd.Run()
-	
+
 	isValid := err == nil
 	manifestJson := out.String()
 	errMsg := stderr.String()
-	
+
 	return &pb.VerifyCertificateResponse{
 		IsValid:      isValid,
 		ManifestJson: manifestJson,

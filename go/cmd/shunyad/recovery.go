@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os/exec"
+	"shunya/internal/tools"
 	"time"
 
 	pb "shunya/shunya/v1"
@@ -17,8 +18,8 @@ func (s *DaemonServer) StartRecovery(ctx context.Context, req *pb.StartRecoveryR
 
 	go func() {
 		log.Printf("Spawning shunya-engine for recovery job %s", jobID)
-		cmd := exec.Command("shunya-engine", "recover", "--device", req.SourceDeviceId, "--output", req.OutputDirectory, "--profile", req.Profile)
-		
+		cmd := exec.Command(tools.FindEngineBinary(), "recover", "--device", req.SourceDeviceId, "--output", req.OutputDirectory, "--profile", req.Profile)
+
 		output, err := cmd.CombinedOutput()
 		if err != nil {
 			log.Printf("Warning: shunya-engine recover failed or not found for job %s: %v\nOutput: %s", jobID, err, string(output))

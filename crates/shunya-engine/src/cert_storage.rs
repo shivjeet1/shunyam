@@ -29,7 +29,7 @@ pub fn store_certificate_on_drive(
     std::thread::sleep(std::time::Duration::from_millis(500));
 
     // Construct the partition path (handles /dev/nvme0n1p1 vs /dev/sda1)
-    let part_path = if device.contains("nvme") || device.contains("mmc") {
+    let part_path = if device.contains("nvme") || device.contains("mmc") || device.contains("loop") {
         format!("{}p1", device)
     } else {
         format!("{}1", device)
@@ -98,7 +98,7 @@ pub fn store_certificate_on_drive(
 
 /// Verifies the certs on a given drive.
 pub fn verify_certificate_on_drive(device: &str) -> Result<(String, bool), String> {
-    let part_path = if device.contains("nvme") || device.contains("mmc") {
+    let part_path = if device.contains("nvme") || device.contains("mmc") || device.contains("loop") {
         format!("{}p1", device)
     } else {
         format!("{}1", device)

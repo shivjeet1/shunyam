@@ -4,8 +4,8 @@ package main
 
 import (
 	"log"
-	"path/filepath"
 	"os"
+	"path/filepath"
 
 	"golang.org/x/sys/windows/svc"
 	"google.golang.org/grpc"
@@ -23,7 +23,7 @@ func (m *shunyaService) Execute(args []string, r <-chan svc.ChangeRequest, chang
 		programData = `C:\ProgramData`
 	}
 	dbPath := filepath.Join(programData, "Shunya", "shunya.db")
-	
+
 	// On Windows, use a localhost TCP socket instead of UNIX Domain Sockets
 	socketPath := "127.0.0.1:9090"
 

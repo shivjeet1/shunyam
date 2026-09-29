@@ -15,7 +15,7 @@ import (
 // StreamWipeJob executes the Rust shunya-engine, sends the wipe request via stdin,
 // and parses streamed JobEvent protobufs from stdout to update the Go state machine.
 func StreamWipeJob(machine *job.Machine, req *pb.StartJobRequest, jobID string) error {
-	cmd := exec.Command("shunya-engine", "stream")
+	cmd := exec.Command(FindEngineBinary(), "stream")
 
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
@@ -36,7 +36,7 @@ func StreamWipeJob(machine *job.Machine, req *pb.StartJobRequest, jobID string) 
 	if err != nil {
 		return fmt.Errorf("failed to marshal request: %w", err)
 	}
-	
+
 	// Write 4-byte big-endian length prefix
 	var length uint32 = uint32(len(reqBytes))
 	if err := binary.Write(stdin, binary.BigEndian, length); err != nil {
@@ -46,7 +46,7 @@ func StreamWipeJob(machine *job.Machine, req *pb.StartJobRequest, jobID string) 
 	if _, err := stdin.Write(reqBytes); err != nil {
 		return fmt.Errorf("failed to write payload: %w", err)
 	}
-	
+
 	// Close stdin so Rust knows we're done sending requests
 	stdin.Close()
 
