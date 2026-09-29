@@ -303,19 +303,27 @@ fn main() -> Result<(), slint::PlatformError> {
                     let step = event.step_name.clone();
                     let progress = event.progress_percent;
                     let status_msg = event.message.clone();
+                    let status = event.status.clone();
                     let dev = dev_id.clone();
                     let ui_cc = ui_c.clone();
 
-                    let phase = match step.to_lowercase().as_str() {
-                        "probing" | "wiping" => "wiping",
-                        "verifying" | "carving" => "verifying",
-                        "done" => "done",
-                        _ => "wiping",
-                    }
-                    .to_string();
+                    let phase = if status == "Failed" {
+                        "error".to_string()
+                    } else {
+                        match step.to_lowercase().as_str() {
+                            "probing" | "wiping" => "wiping",
+                            "verifying" | "carving" => "verifying",
+                            "done" => "done",
+                            _ => "wiping",
+                        }
+                        .to_string()
+                    };
 
                     let _ = slint::invoke_from_event_loop(move || {
                         if let Some(ui) = ui_cc.upgrade() {
+                            if status == "Failed" {
+                                ui.set_wipe_error_msg(status_msg.clone().into());
+                            }
                             let model = ui.get_devices();
                             for i in 0..model.row_count() {
                                 if let Some(mut d) = model.row_data(i) {

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -50,6 +51,7 @@ func publish(jobID string, evt *pb.JobEvent) {
 }
 
 func emit(jobID, step, status, msg string, progress float32) {
+	log.Printf("[Job %s] %s/%s: %s (%.1f%%)", jobID, step, status, msg, progress)
 	publish(jobID, &pb.JobEvent{
 		JobId:           jobID,
 		StepName:        step,
@@ -81,17 +83,24 @@ func runWipeJob(jobID string, method string, machine *job.Machine, req *pb.Start
 		transport = meta.Transport
 	}
 
+	capacityBytes := req.CapacityBytes
+	if ok && meta.Capacity > 0 {
+		capacityBytes = meta.Capacity
+	}
+
 	cfg := wipe.WipeConfig{
 		DevicePath:    req.DeviceId,
 		Transport:     transport,
 		Method:        method,
-		CapacityBytes: req.CapacityBytes,
+		CapacityBytes: capacityBytes,
 		JobID:         jobID,
 	}
 
 	err := wipe.Execute(cfg, emit)
 	if err != nil {
-		machine.Transition(jobID, job.StateDone, 0)
+		log.Printf("[Job %s] WIPE FAILED: %v", jobID, err)
+		emit(jobID, "Wiping", "Failed", err.Error(), 0)
+		machine.Fail(jobID, err)
 	} else {
 		machine.Transition(jobID, job.StateDone, 100)
 	}
