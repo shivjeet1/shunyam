@@ -234,6 +234,13 @@ fn main() -> Result<(), slint::PlatformError> {
         let response = challenge_response.to_string();
         let method = requested_method.to_string();
         let ui_c = ui_wipe.clone();
+        let ui_clear = ui_c.clone();
+        let _ = slint::invoke_from_event_loop(move || {
+            if let Some(ui) = ui_clear.upgrade() {
+                ui.set_wipe_error_msg("".into());
+            }
+        });
+
 
         rt_wipe.spawn(async move {
             let mut client =
@@ -251,7 +258,13 @@ fn main() -> Result<(), slint::PlatformError> {
             let job_id = match client.start_job(req).await {
                 Ok(res) => res.into_inner().job_id,
                 Err(e) => {
-                    println!("start_job error: {}", e);
+                    let err_str = format!("Failed to start sanitization: {}", e.message());
+                    let ui_cc = ui_c.clone();
+                    let _ = slint::invoke_from_event_loop(move || {
+                        if let Some(ui) = ui_cc.upgrade() {
+                            ui.set_wipe_error_msg(err_str.into());
+                        }
+                    });
                     return;
                 }
             };
