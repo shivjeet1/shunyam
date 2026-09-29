@@ -142,11 +142,30 @@ func ExecuteZeroFill(devicePath string, capacityBytes uint64, emit EmitFunc, job
 		return err
 	}
 
+	// dd status=progress uses \r for in-place progress updates
 	scanner := bufio.NewScanner(stderr)
+	scanner.Split(func(data []byte, atEOF bool) (advance int, token []byte, err error) {
+		if atEOF && len(data) == 0 {
+			return 0, nil, nil
+		}
+		for i := 0; i < len(data); i++ {
+			if data[i] == '\n' || data[i] == '\r' {
+				return i + 1, data[:i], nil
+			}
+		}
+		if atEOF {
+			return len(data), data, nil
+		}
+		return 0, nil, nil
+	})
+
 	re := regexp.MustCompile(`(\d+) bytes`)
 
 	for scanner.Scan() {
 		line := scanner.Text()
+		if line == "" {
+			continue
+		}
 		matches := re.FindStringSubmatch(line)
 		if len(matches) == 2 {
 			bytesCopied, _ := strconv.ParseUint(matches[1], 10, 64)

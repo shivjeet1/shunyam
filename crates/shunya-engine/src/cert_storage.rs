@@ -21,12 +21,15 @@ pub fn store_certificate_on_drive(
         return Err(format!("sgdisk -Z failed: {}", String::from_utf8_lossy(&zap_out.stderr)));
     }
 
-    // 1. Create a 20MB partition at the end of the device (type 0700: Microsoft Basic Data)
+    // 1. Create a 20MB partition at the start of the device (type 0700: Microsoft Basic Data) for certs
+    // 2. Create a second partition using the remaining space for user data
     let sgdisk_out = Command::new("sgdisk")
-        .arg("-n")
-        .arg("1:-20M:0")
-        .arg("-t")
-        .arg("1:0700")
+        .arg("-n").arg("1:0:+20M")
+        .arg("-t").arg("1:0700")
+        .arg("-A").arg("1:set:60") // Read-only attribute
+        .arg("-A").arg("1:set:63") // Do not automount attribute
+        .arg("-n").arg("2:0:0") // Rest of the drive
+        .arg("-t").arg("2:0700")
         .arg(device)
         .output()
         .map_err(|e| format!("Failed to run sgdisk: {}", e))?;
@@ -41,21 +44,40 @@ pub fn store_certificate_on_drive(
     // Give the kernel a moment to re-read the partition table via udevadm
     let _ = Command::new("udevadm").arg("settle").status();
 
-    // Construct the partition path (handles /dev/nvme0n1p1 vs /dev/sda1)
-    let part_path = if device.contains("nvme") || device.contains("mmc") || device.contains("loop") {
-        format!("{}p1", device)
+    // Construct the partition paths
+    let (part1_path, part2_path) = if device.contains("nvme") || device.contains("mmc") || device.contains("loop") {
+        (format!("{}p1", device), format!("{}p2", device))
     } else {
-        format!("{}1", device)
+        (format!("{}1", device), format!("{}2", device))
     };
 
-    eprintln!("Formatting {} as FAT32...", part_path);
-    // 2. Format as FAT32
+    eprintln!("Formatting {} as FAT32...", part1_path);
+    // 2. Format Part 1 as FAT32 (Certificates)
     let mkfs_out = Command::new("mkfs.vfat")
         .arg("-n")
         .arg("SHUNYA_CERT")
-        .arg(&part_path)
+        .arg(&part1_path)
         .output()
-        .map_err(|e| format!("Failed to run mkfs.vfat: {}", e))?;
+        .map_err(|e| format!("Failed to run mkfs.vfat on cert partition: {}", e))?;
+        
+    if !mkfs_out.status.success() {
+        return Err(format!("mkfs.vfat failed: {}", String::from_utf8_lossy(&mkfs_out.stderr)));
+    }
+
+    eprintln!("Formatting {} as exFAT...", part2_path);
+    // 2b. Format Part 2 as exFAT (User Data)
+    let mkfs_exfat_out = Command::new("mkfs.exfat")
+        .arg("-n")
+        .arg("DATA")
+        .arg(&part2_path)
+        .output()
+        .map_err(|e| format!("Failed to run mkfs.exfat on data partition: {}", e))?;
+        
+    if !mkfs_exfat_out.status.success() {
+        return Err(format!("mkfs.exfat failed (is exfatprogs installed?): {}", String::from_utf8_lossy(&mkfs_exfat_out.stderr)));
+    }
+
+    let part_path = part1_path;
         
     if !mkfs_out.status.success() {
         return Err(format!("mkfs.vfat failed: {}", String::from_utf8_lossy(&mkfs_out.stderr)));
