@@ -14,7 +14,7 @@ import (
 
 // StreamWipeJob executes the Rust shunya-engine, sends the wipe request via stdin,
 // and parses streamed JobEvent protobufs from stdout to update the Go state machine.
-func StreamWipeJob(machine *job.Machine, req *pb.StartJobRequest, jobID string) error {
+func StreamWipeJob(machine *job.Machine, req *pb.StartJobRequest, jobID string, onEvent func(*pb.JobEvent)) error {
 	cmd := exec.Command(FindEngineBinary(), "stream")
 
 	stdin, err := cmd.StdinPipe()
@@ -51,10 +51,9 @@ func StreamWipeJob(machine *job.Machine, req *pb.StartJobRequest, jobID string) 
 	stdin.Close()
 
 	// 2. Read streamed events from Rust via stdout (Length-prefixed)
-	go func() {
-		defer cmd.Wait()
+	defer cmd.Wait()
 
-		for {
+	for {
 			var length uint32
 			if err := binary.Read(stdout, binary.BigEndian, &length); err != nil {
 				if err == io.EOF {
@@ -62,14 +61,14 @@ func StreamWipeJob(machine *job.Machine, req *pb.StartJobRequest, jobID string) 
 				}
 				log.Printf("[Job %s] Error reading event length from engine: %v", jobID, err)
 				machine.Fail(jobID, err)
-				return
+				return err
 			}
 
 			payload := make([]byte, length)
 			if _, err := io.ReadFull(stdout, payload); err != nil {
 				log.Printf("[Job %s] Error reading event payload from engine: %v", jobID, err)
 				machine.Fail(jobID, err)
-				return
+				return err
 			}
 
 			var event pb.JobEvent
@@ -103,8 +102,11 @@ func StreamWipeJob(machine *job.Machine, req *pb.StartJobRequest, jobID string) 
 			} else {
 				machine.Transition(jobID, newState, float64(event.ProgressPercent))
 			}
+			
+			event.JobId = jobID
+			if onEvent != nil {
+				onEvent(&event)
+			}
 		}
-	}()
-
 	return nil
 }

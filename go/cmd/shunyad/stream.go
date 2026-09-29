@@ -69,7 +69,14 @@ func runWipeJob(jobID string, method string, machine *job.Machine, req *pb.Start
 	jobMethods.m[jobID] = method
 	jobMethods.Unlock()
 
-	if err := tools.StreamWipeJob(machine, req, jobID); err == nil {
+	if err := tools.StreamWipeJob(machine, req, jobID, func(evt *pb.JobEvent) { publish(jobID, evt) }); err == nil {
+		// Close all subscriber channels for this job
+		eventBus.Lock()
+		for _, ch := range eventBus.subs[jobID] {
+			close(ch)
+		}
+		delete(eventBus.subs, jobID)
+		eventBus.Unlock()
 		return
 	} else {
 		log.Printf("[Job %s] Real wipe path failed (falling back to simulation): %v", jobID, err)

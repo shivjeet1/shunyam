@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.6.2
 // - protoc             v7.36.1
-// source: proto/shunya/v1/shunya.proto
+// source: shunya/v1/shunya.proto
 
 package v1
 
@@ -117,7 +117,7 @@ var DeviceService_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "proto/shunya/v1/shunya.proto",
+	Metadata: "shunya/v1/shunya.proto",
 }
 
 const (
@@ -305,7 +305,7 @@ var JobService_ServiceDesc = grpc.ServiceDesc{
 			ServerStreams: true,
 		},
 	},
-	Metadata: "proto/shunya/v1/shunya.proto",
+	Metadata: "shunya/v1/shunya.proto",
 }
 
 const (
@@ -415,7 +415,7 @@ var RecoveryService_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "proto/shunya/v1/shunya.proto",
+	Metadata: "shunya/v1/shunya.proto",
 }
 
 const (
@@ -565,5 +565,5 @@ var CertificateService_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "proto/shunya/v1/shunya.proto",
+	Metadata: "shunya/v1/shunya.proto",
 }

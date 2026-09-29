@@ -38,6 +38,7 @@ export component MainWindow inherits Window {
     // Cert panel state
     in-out property <bool>   cert_generating: false;
     in-out property <string> cert_status_msg: "";
+    in-out property <string> wipe_error_msg: "";
     property  <string>       operator_id: "";
 
     // Verify cert panel state
@@ -963,6 +964,19 @@ export component MainWindow inherits Window {
                                     LineEdit {
                                         placeholder-text: "Enter verification code…";
                                         text <=> root.challenge_input;
+                                    }
+                                    if root.challenge_input != "" && root.challenge_input != root.active_challenge : Text {
+                                        text: "⚠️ Verification code does not match challenge (case-sensitive)";
+                                        color: #ef5350;
+                                        font-size: 11px;
+                                        horizontal-alignment: center;
+                                    }
+                                    if root.wipe_error_msg != "" : Text {
+                                        text: "❌ " + root.wipe_error_msg;
+                                        color: #ef5350;
+                                        font-size: 12px;
+                                        wrap: word-wrap;
+                                        horizontal-alignment: center;
                                     }
                                     Button {
                                         text: root.selected_method == "NIST 800-88 Cryptographic Erase (Crypto Erase)"? " EXECUTE CRYPTO ERASE"

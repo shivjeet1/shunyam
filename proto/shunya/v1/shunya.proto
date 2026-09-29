@@ -57,6 +57,8 @@ message StartJobRequest {
   string device_id = 1;
   string challenge_response = 2; // User must provide the exact challenge_string
   string requested_method = 3;
+  string job_id = 4;
+  uint64 capacity_bytes = 5;
 }
 
 message StartJobResponse {

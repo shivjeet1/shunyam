@@ -21,7 +21,7 @@ impl AlignedBuffer {
 
         AlignedBuffer {
             ptr: ptr as *mut u8,
-            size: 0,
+            size: capacity,
             capacity,
         }
     }

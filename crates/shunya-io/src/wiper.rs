@@ -43,10 +43,10 @@ impl Wiper {
 
         let mut buffer = AlignedBuffer::new(chunk_size, alignment);
         
-        // Open device with O_DIRECT and O_SYNC for direct IO
+        // Open device (O_SYNC for synchronous writes, removed O_DIRECT for better compatibility during test phase)
         let mut file = OpenOptions::new()
             .write(true)
-            .custom_flags(libc::O_DIRECT | libc::O_SYNC)
+            .custom_flags(libc::O_SYNC)
             .open(&self.device_path)?;
 
         let mut written: u64 = 0;

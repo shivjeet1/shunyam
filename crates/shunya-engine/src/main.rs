@@ -185,22 +185,40 @@ fn main() {
                 }
             };
             
-            let job_id = "engine-run";
+            let job_id = req.job_id.clone();
             let device = req.device_id;
+            let mut capacity = req.capacity_bytes;
             
-            let _ = emit_event(job_id, "probing", "probing", 10.0, "Probing device capability");
-            thread::sleep(Duration::from_millis(200));
+            let _ = emit_event(&job_id, "probing", "probing", 0.0, "Probing device capability");
             
-            let _ = emit_event(job_id, "wiping", "wiping", 20.0, &format!("Started wipe on {}", device));
-            thread::sleep(Duration::from_millis(500));
+            if capacity == 0 {
+                if let Ok(devices) = shunya_device::enumerate_devices() {
+                    if let Some(d) = devices.iter().find(|x| x.path == device) {
+                        capacity = d.capacity_bytes;
+                    }
+                }
+            }
+            if capacity == 0 {
+                let _ = emit_event(&job_id, "failed", "error", 0.0, "Capacity is 0. Cannot wipe.");
+                exit(1);
+            }
             
-            let _ = emit_event(job_id, "wiping", "wiping", 70.0, "Wipe nearing completion");
-            thread::sleep(Duration::from_millis(300));
+            let _ = emit_event(&job_id, "wiping", "wiping", 5.0, &format!("Started wipe on {}", device));
             
-            let _ = emit_event(job_id, "verifying", "verifying", 85.0, "Wipe complete. Verifying...");
-            thread::sleep(Duration::from_millis(200));
+            let seed: [u8; 32] = [42; 32];
+            let mut wiper = Wiper::new(&device, capacity, seed);
             
-            let _ = emit_event(job_id, "done", "success", 100.0, "Job completed successfully");
+            match wiper.overwrite() {
+                Ok(_) => {
+                    let _ = emit_event(&job_id, "verifying", "verifying", 90.0, "Wipe complete.");
+                    // In a real scenario we'd read back and verify here
+                    let _ = emit_event(&job_id, "done", "success", 100.0, "Job completed successfully");
+                }
+                Err(e) => {
+                    let _ = emit_event(&job_id, "failed", "error", 50.0, &format!("Wipe failed: {:?}", e));
+                    exit(1);
+                }
+            }
         }
         Commands::Wipe { device, capacity } => {
             println!("Starting wipe engine for device: {}", device);

@@ -2,7 +2,7 @@
 // versions:
 // 	protoc-gen-go v1.36.12
 // 	protoc        v7.36.1
-// source: proto/shunya/v1/shunya.proto
+// source: shunya/v1/shunya.proto
 
 package v1
 
@@ -29,7 +29,7 @@ type ListDevicesRequest struct {
 
 func (x *ListDevicesRequest) Reset() {
 	*x = ListDevicesRequest{}
-	mi := &file_proto_shunya_v1_shunya_proto_msgTypes[0]
+	mi := &file_shunya_v1_shunya_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -41,7 +41,7 @@ func (x *ListDevicesRequest) String() string {
 func (*ListDevicesRequest) ProtoMessage() {}
 
 func (x *ListDevicesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_shunya_v1_shunya_proto_msgTypes[0]
+	mi := &file_shunya_v1_shunya_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -54,7 +54,7 @@ func (x *ListDevicesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListDevicesRequest.ProtoReflect.Descriptor instead.
 func (*ListDevicesRequest) Descriptor() ([]byte, []int) {
-	return file_proto_shunya_v1_shunya_proto_rawDescGZIP(), []int{0}
+	return file_shunya_v1_shunya_proto_rawDescGZIP(), []int{0}
 }
 
 type ListDevicesResponse struct {
@@ -66,7 +66,7 @@ type ListDevicesResponse struct {
 
 func (x *ListDevicesResponse) Reset() {
 	*x = ListDevicesResponse{}
-	mi := &file_proto_shunya_v1_shunya_proto_msgTypes[1]
+	mi := &file_shunya_v1_shunya_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -78,7 +78,7 @@ func (x *ListDevicesResponse) String() string {
 func (*ListDevicesResponse) ProtoMessage() {}
 
 func (x *ListDevicesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_shunya_v1_shunya_proto_msgTypes[1]
+	mi := &file_shunya_v1_shunya_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -91,7 +91,7 @@ func (x *ListDevicesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListDevicesResponse.ProtoReflect.Descriptor instead.
 func (*ListDevicesResponse) Descriptor() ([]byte, []int) {
-	return file_proto_shunya_v1_shunya_proto_rawDescGZIP(), []int{1}
+	return file_shunya_v1_shunya_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *ListDevicesResponse) GetDevices() []*Device {
@@ -118,7 +118,7 @@ type Device struct {
 
 func (x *Device) Reset() {
 	*x = Device{}
-	mi := &file_proto_shunya_v1_shunya_proto_msgTypes[2]
+	mi := &file_shunya_v1_shunya_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -130,7 +130,7 @@ func (x *Device) String() string {
 func (*Device) ProtoMessage() {}
 
 func (x *Device) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_shunya_v1_shunya_proto_msgTypes[2]
+	mi := &file_shunya_v1_shunya_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -143,7 +143,7 @@ func (x *Device) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Device.ProtoReflect.Descriptor instead.
 func (*Device) Descriptor() ([]byte, []int) {
-	return file_proto_shunya_v1_shunya_proto_rawDescGZIP(), []int{2}
+	return file_shunya_v1_shunya_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *Device) GetId() string {
@@ -218,7 +218,7 @@ type GetChallengeRequest struct {
 
 func (x *GetChallengeRequest) Reset() {
 	*x = GetChallengeRequest{}
-	mi := &file_proto_shunya_v1_shunya_proto_msgTypes[3]
+	mi := &file_shunya_v1_shunya_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -230,7 +230,7 @@ func (x *GetChallengeRequest) String() string {
 func (*GetChallengeRequest) ProtoMessage() {}
 
 func (x *GetChallengeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_shunya_v1_shunya_proto_msgTypes[3]
+	mi := &file_shunya_v1_shunya_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -243,7 +243,7 @@ func (x *GetChallengeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetChallengeRequest.ProtoReflect.Descriptor instead.
 func (*GetChallengeRequest) Descriptor() ([]byte, []int) {
-	return file_proto_shunya_v1_shunya_proto_rawDescGZIP(), []int{3}
+	return file_shunya_v1_shunya_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *GetChallengeRequest) GetDeviceId() string {
@@ -262,7 +262,7 @@ type GetChallengeResponse struct {
 
 func (x *GetChallengeResponse) Reset() {
 	*x = GetChallengeResponse{}
-	mi := &file_proto_shunya_v1_shunya_proto_msgTypes[4]
+	mi := &file_shunya_v1_shunya_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -274,7 +274,7 @@ func (x *GetChallengeResponse) String() string {
 func (*GetChallengeResponse) ProtoMessage() {}
 
 func (x *GetChallengeResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_shunya_v1_shunya_proto_msgTypes[4]
+	mi := &file_shunya_v1_shunya_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -287,7 +287,7 @@ func (x *GetChallengeResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetChallengeResponse.ProtoReflect.Descriptor instead.
 func (*GetChallengeResponse) Descriptor() ([]byte, []int) {
-	return file_proto_shunya_v1_shunya_proto_rawDescGZIP(), []int{4}
+	return file_shunya_v1_shunya_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *GetChallengeResponse) GetChallengeString() string {
@@ -302,13 +302,15 @@ type StartJobRequest struct {
 	DeviceId          string                 `protobuf:"bytes,1,opt,name=device_id,json=deviceId,proto3" json:"device_id,omitempty"`
 	ChallengeResponse string                 `protobuf:"bytes,2,opt,name=challenge_response,json=challengeResponse,proto3" json:"challenge_response,omitempty"` // User must provide the exact challenge_string
 	RequestedMethod   string                 `protobuf:"bytes,3,opt,name=requested_method,json=requestedMethod,proto3" json:"requested_method,omitempty"`
+	JobId             string                 `protobuf:"bytes,4,opt,name=job_id,json=jobId,proto3" json:"job_id,omitempty"`
+	CapacityBytes     uint64                 `protobuf:"varint,5,opt,name=capacity_bytes,json=capacityBytes,proto3" json:"capacity_bytes,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
 }
 
 func (x *StartJobRequest) Reset() {
 	*x = StartJobRequest{}
-	mi := &file_proto_shunya_v1_shunya_proto_msgTypes[5]
+	mi := &file_shunya_v1_shunya_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -320,7 +322,7 @@ func (x *StartJobRequest) String() string {
 func (*StartJobRequest) ProtoMessage() {}
 
 func (x *StartJobRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_shunya_v1_shunya_proto_msgTypes[5]
+	mi := &file_shunya_v1_shunya_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -333,7 +335,7 @@ func (x *StartJobRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StartJobRequest.ProtoReflect.Descriptor instead.
 func (*StartJobRequest) Descriptor() ([]byte, []int) {
-	return file_proto_shunya_v1_shunya_proto_rawDescGZIP(), []int{5}
+	return file_shunya_v1_shunya_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *StartJobRequest) GetDeviceId() string {
@@ -357,6 +359,20 @@ func (x *StartJobRequest) GetRequestedMethod() string {
 	return ""
 }
 
+func (x *StartJobRequest) GetJobId() string {
+	if x != nil {
+		return x.JobId
+	}
+	return ""
+}
+
+func (x *StartJobRequest) GetCapacityBytes() uint64 {
+	if x != nil {
+		return x.CapacityBytes
+	}
+	return 0
+}
+
 type StartJobResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	JobId         string                 `protobuf:"bytes,1,opt,name=job_id,json=jobId,proto3" json:"job_id,omitempty"`
@@ -366,7 +382,7 @@ type StartJobResponse struct {
 
 func (x *StartJobResponse) Reset() {
 	*x = StartJobResponse{}
-	mi := &file_proto_shunya_v1_shunya_proto_msgTypes[6]
+	mi := &file_shunya_v1_shunya_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -378,7 +394,7 @@ func (x *StartJobResponse) String() string {
 func (*StartJobResponse) ProtoMessage() {}
 
 func (x *StartJobResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_shunya_v1_shunya_proto_msgTypes[6]
+	mi := &file_shunya_v1_shunya_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -391,7 +407,7 @@ func (x *StartJobResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StartJobResponse.ProtoReflect.Descriptor instead.
 func (*StartJobResponse) Descriptor() ([]byte, []int) {
-	return file_proto_shunya_v1_shunya_proto_rawDescGZIP(), []int{6}
+	return file_shunya_v1_shunya_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *StartJobResponse) GetJobId() string {
@@ -410,7 +426,7 @@ type StreamEventsRequest struct {
 
 func (x *StreamEventsRequest) Reset() {
 	*x = StreamEventsRequest{}
-	mi := &file_proto_shunya_v1_shunya_proto_msgTypes[7]
+	mi := &file_shunya_v1_shunya_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -422,7 +438,7 @@ func (x *StreamEventsRequest) String() string {
 func (*StreamEventsRequest) ProtoMessage() {}
 
 func (x *StreamEventsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_shunya_v1_shunya_proto_msgTypes[7]
+	mi := &file_shunya_v1_shunya_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -435,7 +451,7 @@ func (x *StreamEventsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StreamEventsRequest.ProtoReflect.Descriptor instead.
 func (*StreamEventsRequest) Descriptor() ([]byte, []int) {
-	return file_proto_shunya_v1_shunya_proto_rawDescGZIP(), []int{7}
+	return file_shunya_v1_shunya_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *StreamEventsRequest) GetJobId() string {
@@ -458,7 +474,7 @@ type JobEvent struct {
 
 func (x *JobEvent) Reset() {
 	*x = JobEvent{}
-	mi := &file_proto_shunya_v1_shunya_proto_msgTypes[8]
+	mi := &file_shunya_v1_shunya_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -470,7 +486,7 @@ func (x *JobEvent) String() string {
 func (*JobEvent) ProtoMessage() {}
 
 func (x *JobEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_shunya_v1_shunya_proto_msgTypes[8]
+	mi := &file_shunya_v1_shunya_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -483,7 +499,7 @@ func (x *JobEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use JobEvent.ProtoReflect.Descriptor instead.
 func (*JobEvent) Descriptor() ([]byte, []int) {
-	return file_proto_shunya_v1_shunya_proto_rawDescGZIP(), []int{8}
+	return file_shunya_v1_shunya_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *JobEvent) GetJobId() string {
@@ -532,7 +548,7 @@ type StartRecoveryRequest struct {
 
 func (x *StartRecoveryRequest) Reset() {
 	*x = StartRecoveryRequest{}
-	mi := &file_proto_shunya_v1_shunya_proto_msgTypes[9]
+	mi := &file_shunya_v1_shunya_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -544,7 +560,7 @@ func (x *StartRecoveryRequest) String() string {
 func (*StartRecoveryRequest) ProtoMessage() {}
 
 func (x *StartRecoveryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_shunya_v1_shunya_proto_msgTypes[9]
+	mi := &file_shunya_v1_shunya_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -557,7 +573,7 @@ func (x *StartRecoveryRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StartRecoveryRequest.ProtoReflect.Descriptor instead.
 func (*StartRecoveryRequest) Descriptor() ([]byte, []int) {
-	return file_proto_shunya_v1_shunya_proto_rawDescGZIP(), []int{9}
+	return file_shunya_v1_shunya_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *StartRecoveryRequest) GetSourceDeviceId() string {
@@ -590,7 +606,7 @@ type StartRecoveryResponse struct {
 
 func (x *StartRecoveryResponse) Reset() {
 	*x = StartRecoveryResponse{}
-	mi := &file_proto_shunya_v1_shunya_proto_msgTypes[10]
+	mi := &file_shunya_v1_shunya_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -602,7 +618,7 @@ func (x *StartRecoveryResponse) String() string {
 func (*StartRecoveryResponse) ProtoMessage() {}
 
 func (x *StartRecoveryResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_shunya_v1_shunya_proto_msgTypes[10]
+	mi := &file_shunya_v1_shunya_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -615,7 +631,7 @@ func (x *StartRecoveryResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StartRecoveryResponse.ProtoReflect.Descriptor instead.
 func (*StartRecoveryResponse) Descriptor() ([]byte, []int) {
-	return file_proto_shunya_v1_shunya_proto_rawDescGZIP(), []int{10}
+	return file_shunya_v1_shunya_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *StartRecoveryResponse) GetJobId() string {
@@ -634,7 +650,7 @@ type GetCertificateRequest struct {
 
 func (x *GetCertificateRequest) Reset() {
 	*x = GetCertificateRequest{}
-	mi := &file_proto_shunya_v1_shunya_proto_msgTypes[11]
+	mi := &file_shunya_v1_shunya_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -646,7 +662,7 @@ func (x *GetCertificateRequest) String() string {
 func (*GetCertificateRequest) ProtoMessage() {}
 
 func (x *GetCertificateRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_shunya_v1_shunya_proto_msgTypes[11]
+	mi := &file_shunya_v1_shunya_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -659,7 +675,7 @@ func (x *GetCertificateRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetCertificateRequest.ProtoReflect.Descriptor instead.
 func (*GetCertificateRequest) Descriptor() ([]byte, []int) {
-	return file_proto_shunya_v1_shunya_proto_rawDescGZIP(), []int{11}
+	return file_shunya_v1_shunya_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *GetCertificateRequest) GetJobId() string {
@@ -680,7 +696,7 @@ type GetCertificateResponse struct {
 
 func (x *GetCertificateResponse) Reset() {
 	*x = GetCertificateResponse{}
-	mi := &file_proto_shunya_v1_shunya_proto_msgTypes[12]
+	mi := &file_shunya_v1_shunya_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -692,7 +708,7 @@ func (x *GetCertificateResponse) String() string {
 func (*GetCertificateResponse) ProtoMessage() {}
 
 func (x *GetCertificateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_shunya_v1_shunya_proto_msgTypes[12]
+	mi := &file_shunya_v1_shunya_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -705,7 +721,7 @@ func (x *GetCertificateResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetCertificateResponse.ProtoReflect.Descriptor instead.
 func (*GetCertificateResponse) Descriptor() ([]byte, []int) {
-	return file_proto_shunya_v1_shunya_proto_rawDescGZIP(), []int{12}
+	return file_shunya_v1_shunya_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *GetCertificateResponse) GetCertJson() string {
@@ -738,7 +754,7 @@ type VerifyCertificateRequest struct {
 
 func (x *VerifyCertificateRequest) Reset() {
 	*x = VerifyCertificateRequest{}
-	mi := &file_proto_shunya_v1_shunya_proto_msgTypes[13]
+	mi := &file_shunya_v1_shunya_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -750,7 +766,7 @@ func (x *VerifyCertificateRequest) String() string {
 func (*VerifyCertificateRequest) ProtoMessage() {}
 
 func (x *VerifyCertificateRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_shunya_v1_shunya_proto_msgTypes[13]
+	mi := &file_shunya_v1_shunya_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -763,7 +779,7 @@ func (x *VerifyCertificateRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VerifyCertificateRequest.ProtoReflect.Descriptor instead.
 func (*VerifyCertificateRequest) Descriptor() ([]byte, []int) {
-	return file_proto_shunya_v1_shunya_proto_rawDescGZIP(), []int{13}
+	return file_shunya_v1_shunya_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *VerifyCertificateRequest) GetDeviceId() string {
@@ -784,7 +800,7 @@ type VerifyCertificateResponse struct {
 
 func (x *VerifyCertificateResponse) Reset() {
 	*x = VerifyCertificateResponse{}
-	mi := &file_proto_shunya_v1_shunya_proto_msgTypes[14]
+	mi := &file_shunya_v1_shunya_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -796,7 +812,7 @@ func (x *VerifyCertificateResponse) String() string {
 func (*VerifyCertificateResponse) ProtoMessage() {}
 
 func (x *VerifyCertificateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_shunya_v1_shunya_proto_msgTypes[14]
+	mi := &file_shunya_v1_shunya_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -809,7 +825,7 @@ func (x *VerifyCertificateResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VerifyCertificateResponse.ProtoReflect.Descriptor instead.
 func (*VerifyCertificateResponse) Descriptor() ([]byte, []int) {
-	return file_proto_shunya_v1_shunya_proto_rawDescGZIP(), []int{14}
+	return file_shunya_v1_shunya_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *VerifyCertificateResponse) GetIsValid() bool {
@@ -833,11 +849,11 @@ func (x *VerifyCertificateResponse) GetErrorMessage() string {
 	return ""
 }
 
-var File_proto_shunya_v1_shunya_proto protoreflect.FileDescriptor
+var File_shunya_v1_shunya_proto protoreflect.FileDescriptor
 
-const file_proto_shunya_v1_shunya_proto_rawDesc = "" +
+const file_shunya_v1_shunya_proto_rawDesc = "" +
 	"\n" +
-	"\x1cproto/shunya/v1/shunya.proto\x12\tshunya.v1\"\x14\n" +
+	"\x16shunya/v1/shunya.proto\x12\tshunya.v1\"\x14\n" +
 	"\x12ListDevicesRequest\"B\n" +
 	"\x13ListDevicesResponse\x12+\n" +
 	"\adevices\x18\x01 \x03(\v2\x11.shunya.v1.DeviceR\adevices\"\x98\x02\n" +
@@ -854,11 +870,13 @@ const file_proto_shunya_v1_shunya_proto_rawDesc = "" +
 	"\x13GetChallengeRequest\x12\x1b\n" +
 	"\tdevice_id\x18\x01 \x01(\tR\bdeviceId\"A\n" +
 	"\x14GetChallengeResponse\x12)\n" +
-	"\x10challenge_string\x18\x01 \x01(\tR\x0fchallengeString\"\x88\x01\n" +
+	"\x10challenge_string\x18\x01 \x01(\tR\x0fchallengeString\"\xc6\x01\n" +
 	"\x0fStartJobRequest\x12\x1b\n" +
 	"\tdevice_id\x18\x01 \x01(\tR\bdeviceId\x12-\n" +
 	"\x12challenge_response\x18\x02 \x01(\tR\x11challengeResponse\x12)\n" +
-	"\x10requested_method\x18\x03 \x01(\tR\x0frequestedMethod\")\n" +
+	"\x10requested_method\x18\x03 \x01(\tR\x0frequestedMethod\x12\x15\n" +
+	"\x06job_id\x18\x04 \x01(\tR\x05jobId\x12%\n" +
+	"\x0ecapacity_bytes\x18\x05 \x01(\x04R\rcapacityBytes\")\n" +
 	"\x10StartJobResponse\x12\x15\n" +
 	"\x06job_id\x18\x01 \x01(\tR\x05jobId\",\n" +
 	"\x13StreamEventsRequest\x12\x15\n" +
@@ -902,19 +920,19 @@ const file_proto_shunya_v1_shunya_proto_rawDesc = "" +
 	"\x11VerifyCertificate\x12#.shunya.v1.VerifyCertificateRequest\x1a$.shunya.v1.VerifyCertificateResponseB\x18Z\x16shunya/proto/shunya/v1b\x06proto3"
 
 var (
-	file_proto_shunya_v1_shunya_proto_rawDescOnce sync.Once
-	file_proto_shunya_v1_shunya_proto_rawDescData []byte
+	file_shunya_v1_shunya_proto_rawDescOnce sync.Once
+	file_shunya_v1_shunya_proto_rawDescData []byte
 )
 
-func file_proto_shunya_v1_shunya_proto_rawDescGZIP() []byte {
-	file_proto_shunya_v1_shunya_proto_rawDescOnce.Do(func() {
-		file_proto_shunya_v1_shunya_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_proto_shunya_v1_shunya_proto_rawDesc), len(file_proto_shunya_v1_shunya_proto_rawDesc)))
+func file_shunya_v1_shunya_proto_rawDescGZIP() []byte {
+	file_shunya_v1_shunya_proto_rawDescOnce.Do(func() {
+		file_shunya_v1_shunya_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_shunya_v1_shunya_proto_rawDesc), len(file_shunya_v1_shunya_proto_rawDesc)))
 	})
-	return file_proto_shunya_v1_shunya_proto_rawDescData
+	return file_shunya_v1_shunya_proto_rawDescData
 }
 
-var file_proto_shunya_v1_shunya_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
-var file_proto_shunya_v1_shunya_proto_goTypes = []any{
+var file_shunya_v1_shunya_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
+var file_shunya_v1_shunya_proto_goTypes = []any{
 	(*ListDevicesRequest)(nil),        // 0: shunya.v1.ListDevicesRequest
 	(*ListDevicesResponse)(nil),       // 1: shunya.v1.ListDevicesResponse
 	(*Device)(nil),                    // 2: shunya.v1.Device
@@ -931,7 +949,7 @@ var file_proto_shunya_v1_shunya_proto_goTypes = []any{
 	(*VerifyCertificateRequest)(nil),  // 13: shunya.v1.VerifyCertificateRequest
 	(*VerifyCertificateResponse)(nil), // 14: shunya.v1.VerifyCertificateResponse
 }
-var file_proto_shunya_v1_shunya_proto_depIdxs = []int32{
+var file_shunya_v1_shunya_proto_depIdxs = []int32{
 	2,  // 0: shunya.v1.ListDevicesResponse.devices:type_name -> shunya.v1.Device
 	0,  // 1: shunya.v1.DeviceService.ListDevices:input_type -> shunya.v1.ListDevicesRequest
 	3,  // 2: shunya.v1.JobService.GetChallenge:input_type -> shunya.v1.GetChallengeRequest
@@ -954,26 +972,26 @@ var file_proto_shunya_v1_shunya_proto_depIdxs = []int32{
 	0,  // [0:1] is the sub-list for field type_name
 }
 
-func init() { file_proto_shunya_v1_shunya_proto_init() }
-func file_proto_shunya_v1_shunya_proto_init() {
-	if File_proto_shunya_v1_shunya_proto != nil {
+func init() { file_shunya_v1_shunya_proto_init() }
+func file_shunya_v1_shunya_proto_init() {
+	if File_shunya_v1_shunya_proto != nil {
 		return
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_shunya_v1_shunya_proto_rawDesc), len(file_proto_shunya_v1_shunya_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_shunya_v1_shunya_proto_rawDesc), len(file_shunya_v1_shunya_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   15,
 			NumExtensions: 0,
 			NumServices:   4,
 		},
-		GoTypes:           file_proto_shunya_v1_shunya_proto_goTypes,
-		DependencyIndexes: file_proto_shunya_v1_shunya_proto_depIdxs,
-		MessageInfos:      file_proto_shunya_v1_shunya_proto_msgTypes,
+		GoTypes:           file_shunya_v1_shunya_proto_goTypes,
+		DependencyIndexes: file_shunya_v1_shunya_proto_depIdxs,
+		MessageInfos:      file_shunya_v1_shunya_proto_msgTypes,
 	}.Build()
-	File_proto_shunya_v1_shunya_proto = out.File
-	file_proto_shunya_v1_shunya_proto_goTypes = nil
-	file_proto_shunya_v1_shunya_proto_depIdxs = nil
+	File_shunya_v1_shunya_proto = out.File
+	file_shunya_v1_shunya_proto_goTypes = nil
+	file_shunya_v1_shunya_proto_depIdxs = nil
 }
