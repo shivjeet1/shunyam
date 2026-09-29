@@ -8,8 +8,8 @@ Shunya is an enterprise-grade secure wipe platform designed to cryptographically
 
 | Binary | Language | Role |
 |---|---|---|
-| `shunyad` | Go | Privileged background daemon — device probing, SQLite job tracking, Policy Gate (physical presence challenge), gRPC server on `127.0.0.1:9090` |
-| `shunya-engine` | Rust | High-speed wipe engine — `O_DIRECT \| O_SYNC` ChaCha20 overwrite, deep JPEG/PNG carving validation, SmartCard PIV certificate signing |
+| `shunyad` | Go | Privileged background daemon — device probing, wiping via `nvme`/`hdparm`/`shred`, SQLite job tracking, Policy Gate, gRPC server on `127.0.0.1:9090` |
+| `shunya-engine` | Rust | Certificate engine — SmartCard PIV certificate signing, hardware-signed JSON/PDF manifest generation |
 | `shunya-gui` | Rust/Slint | Native cross-platform GUI — connects to `shunyad` over gRPC, real-time progress streaming, wipe-standard selection, compliance certificate export |
 | `iso/` | Shell/Alpine | Bootable Alpine Linux Live-USB builder for air-gapped bare-metal sanitization |
 
@@ -134,11 +134,13 @@ Before any destructive wipe is authorized, the daemon issues a one-time 4-byte h
 ## Architecture
 
 ```
-shunya-gui  ──gRPC──▶  shunyad (Go)  ──subprocess──▶  shunya-engine (Rust)
-   (Slint)            127.0.0.1:9090     stdin/stdout      (O_DIRECT I/O)
-                           │                                     │
-                       SQLite DB                          shunya-carve
-                      /tmp/shunya.db                     shunya-cert (PIV)
+shunya-gui  ──gRPC──▶  shunyad (Go)  ──execs──▶ nvme-cli / hdparm / shred
+   (Slint)            127.0.0.1:9090                (Secure Wipe)
+                           │
+                           ├── SQLite DB (/tmp/shunya.db)
+                           │
+                           └──subprocess──▶ shunya-engine (Rust)
+                                               (Cert Generation)
 ```
 
 Key design principles:
@@ -160,13 +162,13 @@ shunyam/
 │       ├── db/               # SQLite job store
 │       ├── job/              # State machine (Pending→Wiping→Verifying→Done)
 │       ├── policy/           # Physical presence gate
-│       └── tools/            # lsblk / shunya-engine adapters
+│       ├── wipe/             # Wipe execution via nvme/hdparm/shred
+│       └── tools/            # lsblk adapters & helper execution
 ├── crates/                   # Rust workspace
-│   ├── shunya-engine/        # CLI wipe orchestrator
+│   ├── shunya-engine/        # CLI tool for certificate signing
 │   ├── shunya-gui/           # Slint native UI
 │   ├── shunya-carve/         # Deep file-carving validator
 │   ├── shunya-cert/          # SmartCard PIV certificate signer
-│   ├── shunya-io/            # O_DIRECT I/O primitives
 │   └── shunya-proto/         # Rust-side gRPC stubs (tonic)
 └── iso/                      # Alpine Linux ISO builder
     ├── build.sh
