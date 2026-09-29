@@ -12,30 +12,31 @@ pub fn store_certificate_on_drive(
     eprintln!("Partitioning 20MB FAT32 certificate store at the end of {}...", device);
     
     // Zap existing partition tables
-    let zap_out = Command::new("sgdisk")
-        .arg("-Z")
+    // 1. Create a 20MB partition at the start of the device (type Microsoft Basic Data) for certs
+    // 2. Create a second partition using the remaining space for user data
+    use std::io::Write;
+    let mut sfdisk_child = Command::new("sfdisk")
+        .arg("--wipe").arg("always")
+        .arg("--wipe-partitions").arg("always")
         .arg(device)
-        .output()
-        .map_err(|e| format!("Failed to run sgdisk -Z: {}", e))?;
-    if !zap_out.status.success() {
-        return Err(format!("sgdisk -Z failed: {}", String::from_utf8_lossy(&zap_out.stderr)));
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+        .map_err(|e| format!("Failed to spawn sfdisk: {}", e))?;
+
+    let sfdisk_script = "label: gpt
+size=20M, type=EBD0A0A2-B9E5-4433-87C0-68B6B72699C7, attrs=\"60,63\"
+type=EBD0A0A2-B9E5-4433-87C0-68B6B72699C7
+";
+    
+    if let Some(mut stdin) = sfdisk_child.stdin.take() {
+        stdin.write_all(sfdisk_script.as_bytes()).map_err(|e| format!("Failed to write to sfdisk stdin: {}", e))?;
     }
 
-    // 1. Create a 20MB partition at the start of the device (type 0700: Microsoft Basic Data) for certs
-    // 2. Create a second partition using the remaining space for user data
-    let sgdisk_out = Command::new("sgdisk")
-        .arg("-n").arg("1:0:+20M")
-        .arg("-t").arg("1:0700")
-        .arg("-A").arg("1:set:60") // Read-only attribute
-        .arg("-A").arg("1:set:63") // Do not automount attribute
-        .arg("-n").arg("2:0:0") // Rest of the drive
-        .arg("-t").arg("2:0700")
-        .arg(device)
-        .output()
-        .map_err(|e| format!("Failed to run sgdisk: {}", e))?;
-        
-    if !sgdisk_out.status.success() {
-        return Err(format!("sgdisk failed: {}", String::from_utf8_lossy(&sgdisk_out.stderr)));
+    let sfdisk_out = sfdisk_child.wait_with_output().map_err(|e| format!("Failed to wait for sfdisk: {}", e))?;
+    if !sfdisk_out.status.success() {
+        return Err(format!("sfdisk failed: {}", String::from_utf8_lossy(&sfdisk_out.stderr)));
     }
 
     // Force kernel to re-read partition table
