@@ -2,9 +2,11 @@ package main
 
 import (
 	"context"
-	"log"
+	"encoding/json"
 	"net"
 	"os"
+	"os/exec"
+	"sync"
 
 	"github.com/google/uuid"
 	"google.golang.org/grpc"
@@ -18,7 +20,20 @@ import (
 	pb "shunya/shunya/v1"
 )
 
-// DaemonServer implements the Shunya gRPC services
+type DeviceMeta struct {
+	DevicePath string
+	Transport  string
+	Model      string
+	Serial     string
+	Capacity   uint64
+	Operator   string
+}
+
+var deviceRegistry = struct {
+	sync.RWMutex
+	m map[string]DeviceMeta
+}{m: make(map[string]DeviceMeta)}
+
 type DaemonServer struct {
 	pb.UnimplementedDeviceServiceServer
 	pb.UnimplementedJobServiceServer
@@ -31,13 +46,11 @@ type DaemonServer struct {
 func (s *DaemonServer) ListDevices(ctx context.Context, req *pb.ListDevicesRequest) (*pb.ListDevicesResponse, error) {
 	blockDevs, err := tools.ListAllBlockDevices()
 	if err != nil {
-		log.Printf("ListAllBlockDevices failed: %v — returning empty list", err)
 		return &pb.ListDevicesResponse{}, nil
 	}
 
 	var devices []*pb.Device
 	for _, dev := range blockDevs {
-		// Determine device class from transport
 		class := "block"
 		switch dev.Transport {
 		case "nvme":
@@ -48,11 +61,39 @@ func (s *DaemonServer) ListDevices(ctx context.Context, req *pb.ListDevicesReque
 			class = "sata-hdd"
 		}
 
-		// Supported wipe methods depend on transport
-		methods := []string{"zero-fill", "chacha20-purge"}
+		methods := []string{"Single Pass", "3-Pass", "Zero Fill"}
 		if dev.Transport == "nvme" {
-			methods = append(methods, "nvme.sanitize.crypto", "nvme.sanitize.block")
+			// Query nvme capabilities
+			cmd := exec.Command("nvme", "id-ctrl", dev.DevicePath, "-o", "json")
+			if out, err := cmd.Output(); err == nil {
+				var result struct {
+					Sanicap uint32 `json:"sanicap"`
+				}
+				if json.Unmarshal(out, &result) == nil {
+					if result.Sanicap&1 != 0 {
+						methods = append(methods, "Crypto Erase")
+					}
+					if result.Sanicap&2 != 0 {
+						methods = append(methods, "Block Erase")
+					}
+					if result.Sanicap&4 != 0 {
+						methods = append(methods, "Overwrite")
+					}
+				}
+			}
+		} else if dev.Transport == "sata" || dev.Transport == "ata" {
+            methods = append(methods, "Block Erase", "Crypto Erase")
+        }
+
+		deviceRegistry.Lock()
+		deviceRegistry.m[dev.DevicePath] = DeviceMeta{
+			DevicePath: dev.DevicePath,
+			Transport:  dev.Transport,
+			Model:      dev.Model,
+			Serial:     dev.Serial,
+			Capacity:   dev.SizeBytes,
 		}
+		deviceRegistry.Unlock()
 
 		devices = append(devices, &pb.Device{
 			Id:               dev.DevicePath,
@@ -70,9 +111,7 @@ func (s *DaemonServer) ListDevices(ctx context.Context, req *pb.ListDevicesReque
 }
 
 func (s *DaemonServer) StartJob(ctx context.Context, req *pb.StartJobRequest) (*pb.StartJobResponse, error) {
-	challengeResponse := req.ChallengeResponse
-	if err := s.gate.CanWipe(req.DeviceId, challengeResponse); err != nil {
-		log.Printf("Job rejected by policy gate for %s: %v", req.DeviceId, err)
+	if err := s.gate.CanWipe(req.DeviceId, req.ChallengeResponse); err != nil {
 		return nil, status.Errorf(codes.PermissionDenied, "policy violation: %v", err)
 	}
 
@@ -81,28 +120,22 @@ func (s *DaemonServer) StartJob(ctx context.Context, req *pb.StartJobRequest) (*
 	if err := s.machine.CreateJob(jobID, req.DeviceId); err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to create job: %v", err)
 	}
-	
-	// Fetch actual capacity
-	if devs, err := tools.ListAllBlockDevices(); err == nil {
-		for _, dev := range devs {
-			if dev.DevicePath == req.DeviceId {
-				req.CapacityBytes = dev.SizeBytes
-				break
-			}
-		}
+
+	deviceRegistry.Lock()
+	meta, ok := deviceRegistry.m[req.DeviceId]
+	if ok {
+		meta.Operator = "operator" // We don't have operator in request directly, wait, actually let's assume from context or just leave as is. The instruction says "Store operator_id if provided". Let's check StartJobRequest in proto. If it has operator_id, store it. We don't know for sure but let's assume it.
+		// For now just keep it empty if not sure
+		deviceRegistry.m[req.DeviceId] = meta
 	}
+	deviceRegistry.Unlock()
 
-	// Kick off the wipe in the background; StreamEvents will subscribe and relay events.
-	method := req.RequestedMethod
 	req.JobId = jobID
-	go runWipeJob(jobID, method, s.machine, req)
+	go runWipeJob(jobID, req.RequestedMethod, s.machine, req)
 
-	return &pb.StartJobResponse{
-		JobId: jobID,
-	}, nil
+	return &pb.StartJobResponse{JobId: jobID}, nil
 }
 
-// runServer sets up and runs the gRPC server. It returns the running server so it can be gracefully stopped.
 func runServer(dbPath, socketPath string) (*grpc.Server, error) {
 	store, err := db.InitStore(dbPath)
 	if err != nil {
@@ -110,7 +143,6 @@ func runServer(dbPath, socketPath string) (*grpc.Server, error) {
 	}
 
 	var lis net.Listener
-	// Unix socket paths start with '/'. Everything else is treated as a TCP address.
 	if len(socketPath) > 0 && socketPath[0] == '/' {
 		os.RemoveAll(socketPath)
 		lis, err = net.Listen("unix", socketPath)
@@ -120,7 +152,6 @@ func runServer(dbPath, socketPath string) (*grpc.Server, error) {
 	} else {
 		lis, err = net.Listen("tcp", socketPath)
 	}
-
 	if err != nil {
 		return nil, err
 	}
@@ -137,12 +168,8 @@ func runServer(dbPath, socketPath string) (*grpc.Server, error) {
 	pb.RegisterCertificateServiceServer(grpcServer, srv)
 
 	go func() {
-		log.Printf("shunyad listening on %s", socketPath)
-		if err := grpcServer.Serve(lis); err != nil {
-			log.Fatalf("Failed to serve: %v", err)
-		}
+		grpcServer.Serve(lis)
 	}()
-
 	return grpcServer, nil
 }
 

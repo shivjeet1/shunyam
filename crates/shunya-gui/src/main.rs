@@ -124,7 +124,7 @@ fn main() -> Result<(), slint::PlatformError> {
                 Command::new("pkexec")
                     .arg(&path)
                     .stdout(Stdio::from(f.try_clone().unwrap()))
-                    .stderr(Stdio::from(f))
+                    .stderr(Stdio::inherit())
                     .spawn()
                     .is_ok()
             } else {
@@ -306,10 +306,10 @@ fn main() -> Result<(), slint::PlatformError> {
                     let dev = dev_id.clone();
                     let ui_cc = ui_c.clone();
 
-                    let phase = match step.as_str() {
-                        "Probing" | "Wiping" => "wiping",
-                        "Verifying" | "Carving" => "verifying",
-                        "Done" => "done",
+                    let phase = match step.to_lowercase().as_str() {
+                        "probing" | "wiping" => "wiping",
+                        "verifying" | "carving" => "verifying",
+                        "done" => "done",
                         _ => "wiping",
                     }
                     .to_string();
@@ -475,10 +475,12 @@ fn main() -> Result<(), slint::PlatformError> {
                                 }
                             });
                         }
-                        Err(_) => {
+                        Err(e) => {
+                            let err_msg = format!("Recovery failed: {}", e.message());
                             let _ = slint::invoke_from_event_loop(move || {
                                 if let Some(ui) = ui_c.upgrade() {
                                     ui.set_recovery_status("error".into());
+                                    ui.set_recovery_error_msg(err_msg.into());
                                 }
                             });
                         }
