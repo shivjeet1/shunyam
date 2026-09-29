@@ -201,7 +201,8 @@ func (s *DaemonServer) GetCertificate(ctx context.Context, req *pb.GetCertificat
 			"--target-device", deviceID,
 			"--out-dir", tempDir)
 
-		if err := cmd.Run(); err == nil {
+		out, err := cmd.CombinedOutput()
+		if err == nil {
 			jsonPath := filepath.Join(tempDir, req.JobId+".json")
 			pdfPath := filepath.Join(tempDir, req.JobId+".pdf")
 
@@ -214,11 +215,15 @@ func (s *DaemonServer) GetCertificate(ctx context.Context, req *pb.GetCertificat
 					PdfData:   pdfBytes,
 					QrPayload: "shunya://cert/" + req.JobId + "?method=" + method,
 				}, nil
+			} else {
+				return nil, fmt.Errorf("read failed: json=%v pdf=%v", errJson, errPdf)
 			}
+		} else {
+			return nil, fmt.Errorf("engine failed: %v | out: %s", err, string(out))
 		}
 	}
 
-	return nil, fmt.Errorf("failed to generate certificate")
+	return nil, fmt.Errorf("tempdir failed")
 }
 
 func (s *DaemonServer) VerifyCertificate(ctx context.Context, req *pb.VerifyCertificateRequest) (*pb.VerifyCertificateResponse, error) {
