@@ -9,6 +9,10 @@ import (
 
 func (s *DaemonServer) StartRecovery(ctx context.Context, req *pb.StartRecoveryRequest) (*pb.StartRecoveryResponse, error) {
 	jobID := "recovery-" + req.SourceDeviceId
+
+	s.machine.CreateJob(jobID, req.SourceDeviceId)
+	s.machine.Transition(jobID, "Recovery", 0)
+
 	cfg := recovery.RecoveryConfig{
 		DevicePath: req.SourceDeviceId,
 		OutputDir:  req.OutputDirectory,
@@ -17,15 +21,35 @@ func (s *DaemonServer) StartRecovery(ctx context.Context, req *pb.StartRecoveryR
 	}
 
 	go func() {
-		_ = recovery.Execute(cfg, func(jobID, status, message string, progress float32) {
-			publish(jobID, &pb.JobEvent{
-				JobId:           jobID,
+		defer closeJobChannels(jobID)
+		err := recovery.Execute(cfg, func(jID, status, message string, progress float32) {
+			publish(jID, &pb.JobEvent{
+				JobId:           jID,
 				StepName:        "Recovery",
 				Status:          status,
 				Message:         message,
 				ProgressPercent: progress,
 			})
+			if status == "Success" {
+				s.machine.Transition(jID, "Done", 100)
+			} else if status == "Failed" {
+				// s.machine.Fail(jID, fmt.Errorf("%s", message))
+				s.machine.Transition(jID, "Failed", float64(progress))
+			} else {
+				s.machine.Transition(jID, "Recovery", float64(progress))
+			}
 		})
+
+		if err != nil {
+			publish(jobID, &pb.JobEvent{
+				JobId:           jobID,
+				StepName:        "Recovery",
+				Status:          "Failed",
+				Message:         err.Error(),
+				ProgressPercent: 0,
+			})
+			s.machine.Transition(jobID, "Failed", 0)
+		}
 	}()
 
 	return &pb.StartRecoveryResponse{

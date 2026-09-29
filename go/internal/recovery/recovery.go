@@ -61,7 +61,8 @@ func Execute(cfg RecoveryConfig, emit EmitFunc) error {
 			case <-done:
 				return
 			case <-ticker.C:
-				countFiles(cfg.OutputDir)
+				c := countFiles(cfg.OutputDir)
+				emit(cfg.JobID, "InProgress", fmt.Sprintf("Recovering... (%d files found)", c), 50.0)
 			}
 		}
 	}()
