@@ -198,6 +198,7 @@ func (s *DaemonServer) GetCertificate(ctx context.Context, req *pb.GetCertificat
 			"--device-model", devMeta.Model,
 			"--capacity", fmt.Sprintf("%d", devMeta.Capacity),
 			"--operator", devMeta.Operator,
+			"--target-device", deviceID,
 			"--out-dir", tempDir)
 
 		if err := cmd.Run(); err == nil {
