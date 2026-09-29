@@ -262,10 +262,12 @@ fn main() {
                     println!("Recovery scan complete");
                 }
                 Ok(status) => {
-                    eprintln!("Warning: photorec exited with non-zero status: {}", status);
+                    eprintln!("Error: photorec exited with non-zero status: {}", status);
+                    exit(1);
                 }
                 Err(e) => {
-                    eprintln!("Warning: photorec execution failed: {}. Is it installed?", e);
+                    eprintln!("Error: photorec execution failed: {}. Is it installed?", e);
+                    exit(1);
                 }
             }
         }

@@ -1,6 +1,8 @@
 package main
 
 import (
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"context"
 	"fmt"
 	"log"
@@ -16,17 +18,16 @@ func (s *DaemonServer) StartRecovery(ctx context.Context, req *pb.StartRecoveryR
 
 	jobID := fmt.Sprintf("recovery-%s-%d", req.SourceDeviceId, time.Now().UnixMilli())
 
-	go func() {
-		log.Printf("Spawning shunya-engine for recovery job %s", jobID)
-		cmd := exec.Command(tools.FindEngineBinary(), "recover", "--device", req.SourceDeviceId, "--output", req.OutputDirectory, "--profile", req.Profile)
+	log.Printf("Spawning shunya-engine for recovery job %s", jobID)
+	cmd := exec.Command(tools.FindEngineBinary(), "recover", "--device", req.SourceDeviceId, "--output", req.OutputDirectory, "--profile", req.Profile)
 
-		output, err := cmd.CombinedOutput()
-		if err != nil {
-			log.Printf("Warning: shunya-engine recover failed or not found for job %s: %v\nOutput: %s", jobID, err, string(output))
-		} else {
-			log.Printf("shunya-engine recover completed for job %s\nOutput: %s", jobID, string(output))
-		}
-	}()
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		log.Printf("shunya-engine recover failed: %v\nOutput: %s", err, string(output))
+		return nil, status.Errorf(codes.Internal, "Recovery failed. Please ensure 'photorec' is installed on the system.")
+	}
+
+	log.Printf("shunya-engine recover completed for job %s\nOutput: %s", jobID, string(output))
 
 	return &pb.StartRecoveryResponse{
 		JobId: jobID,

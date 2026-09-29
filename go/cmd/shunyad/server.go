@@ -81,6 +81,16 @@ func (s *DaemonServer) StartJob(ctx context.Context, req *pb.StartJobRequest) (*
 	if err := s.machine.CreateJob(jobID, req.DeviceId); err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to create job: %v", err)
 	}
+	
+	// Fetch actual capacity
+	if devs, err := tools.ListAllBlockDevices(); err == nil {
+		for _, dev := range devs {
+			if dev.DevicePath == req.DeviceId {
+				req.CapacityBytes = dev.SizeBytes
+				break
+			}
+		}
+	}
 
 	// Kick off the wipe in the background; StreamEvents will subscribe and relay events.
 	method := req.RequestedMethod
