@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 
 	"golang.org/x/sys/windows/svc"
-	"google.golang.org/grpc"
 )
 
 type shunyaService struct{}

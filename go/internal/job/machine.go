@@ -1,7 +1,6 @@
 package job
 
 import (
-	"fmt"
 	"log"
 	"shunya/internal/db"
 )
@@ -43,28 +42,6 @@ func (m *Machine) Transition(jobID string, newState State, progress float64) err
 func (m *Machine) Fail(jobID string, reason error) error {
 	log.Printf("[Job %s] FAILED: %v", jobID, reason)
 	return m.store.UpdateJobState(jobID, string(StateFailed), 0.0, reason.Error())
-}
-
-// SimulateExecution is a mock executor for the MVP that simulates the state transitions.
-// In reality, this would spawn the Rust engine and read its events over grpc/stdout.
-func (m *Machine) SimulateExecution(jobID string) {
-	// Probing
-	m.Transition(jobID, StateProbing, 10.0)
-
-	// Wiping
-	m.Transition(jobID, StateWiping, 20.0)
-	// (Simulate wipe progress)
-	m.Transition(jobID, StateWiping, 50.0)
-
-	// Verifying
-	m.Transition(jobID, StateVerifying, 80.0)
-
-	// Carving
-	m.Transition(jobID, StateCarving, 90.0)
-
-	// Done
-	m.Transition(jobID, StateDone, 100.0)
-	fmt.Printf("[Job %s] Execution completed successfully.\n", jobID)
 }
 
 // GetState returns the current state, progress, and error message of a job

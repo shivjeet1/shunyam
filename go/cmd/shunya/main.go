@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"net"
 	"os"
 	"time"
 
@@ -21,17 +20,18 @@ var rootCmd = &cobra.Command{
 	Short: "Shunya Secure Wipe Platform CLI",
 }
 
+func init() {
+	rootCmd.PersistentFlags().String("address", "127.0.0.1:9090", "shunyad gRPC address")
+}
+
 var listCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List all storage devices",
 	Run: func(cmd *cobra.Command, args []string) {
-		conn, err := grpc.Dial(
-			"passthrough:///unix:///tmp/shunyad.sock",
+		addr, _ := cmd.Flags().GetString("address")
+		conn, err := grpc.NewClient(
+			addr,
 			grpc.WithTransportCredentials(insecure.NewCredentials()),
-			grpc.WithContextDialer(func(ctx context.Context, addr string) (net.Conn, error) {
-				var d net.Dialer
-				return d.DialContext(ctx, "unix", "/tmp/shunyad.sock")
-			}),
 		)
 		if err != nil {
 			log.Fatalf("did not connect: %v", err)

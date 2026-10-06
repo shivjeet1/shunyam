@@ -20,10 +20,12 @@ all: build
 build: build-go build-rust
 
 build-go:
-	@echo "==> Building Go daemon (shunyad)..."
+	@echo "==> Building Go daemon (shunyad) and CLI (shunya)..."
 	@mkdir -p $(BUILD_DIR)
 	@cd go && go build -o ../$(SHUNYAD) ./cmd/shunyad
+	@cd go && go build -o ../$(BUILD_DIR)/shunya ./cmd/shunya
 	@echo "    OK  $(SHUNYAD)"
+	@echo "    OK  $(BUILD_DIR)/shunya"
 
 build-rust:
 	@echo "==> Building Rust workspace (shunya-engine, shunya-gui)..."

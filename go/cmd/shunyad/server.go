@@ -121,15 +121,6 @@ func (s *DaemonServer) StartJob(ctx context.Context, req *pb.StartJobRequest) (*
 		return nil, status.Errorf(codes.Internal, "failed to create job: %v", err)
 	}
 
-	deviceRegistry.Lock()
-	meta, ok := deviceRegistry.m[req.DeviceId]
-	if ok {
-		meta.Operator = "operator" // We don't have operator in request directly, wait, actually let's assume from context or just leave as is. The instruction says "Store operator_id if provided". Let's check StartJobRequest in proto. If it has operator_id, store it. We don't know for sure but let's assume it.
-		// For now just keep it empty if not sure
-		deviceRegistry.m[req.DeviceId] = meta
-	}
-	deviceRegistry.Unlock()
-
 	req.JobId = jobID
 	go runWipeJob(jobID, req.RequestedMethod, s.machine, req)
 

@@ -2,13 +2,15 @@ package main
 
 import (
 	"context"
+	"fmt"
 
+	"github.com/google/uuid"
 	"shunya/internal/recovery"
 	pb "shunya/shunya/v1"
 )
 
 func (s *DaemonServer) StartRecovery(ctx context.Context, req *pb.StartRecoveryRequest) (*pb.StartRecoveryResponse, error) {
-	jobID := "recovery-" + req.SourceDeviceId
+	jobID := "recovery-" + uuid.New().String()
 
 	s.machine.CreateJob(jobID, req.SourceDeviceId)
 	s.machine.Transition(jobID, "Recovery", 0)
@@ -33,8 +35,8 @@ func (s *DaemonServer) StartRecovery(ctx context.Context, req *pb.StartRecoveryR
 			if status == "Success" {
 				s.machine.Transition(jID, "Done", 100)
 			} else if status == "Failed" {
-				// s.machine.Fail(jID, fmt.Errorf("%s", message))
-				s.machine.Transition(jID, "Failed", float64(progress))
+				
+				s.machine.Fail(jID, fmt.Errorf("%s", message))
 			} else {
 				s.machine.Transition(jID, "Recovery", float64(progress))
 			}
@@ -48,7 +50,7 @@ func (s *DaemonServer) StartRecovery(ctx context.Context, req *pb.StartRecoveryR
 				Message:         err.Error(),
 				ProgressPercent: 0,
 			})
-			s.machine.Transition(jobID, "Failed", 0)
+			s.machine.Fail(jobID, err)
 		}
 	}()
 

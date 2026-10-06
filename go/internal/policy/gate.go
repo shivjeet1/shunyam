@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"os"
 	"strings"
 	"sync"
@@ -45,7 +46,7 @@ func (g *Gate) GenerateChallenge(deviceID string) (string, error) {
 	challenge := strings.ToUpper(hex.EncodeToString(bytes))
 
 	g.mu.Lock()
-	defer g.mu.Unlock() // wait, defer g.mu.Unlock()
+	defer g.mu.Unlock()
 	g.challenges[deviceID] = activeChallenge{
 		expected: challenge,
 		expires:  time.Now().Add(5 * time.Minute),
@@ -85,10 +86,7 @@ func (g *Gate) CanWipe(devicePath string, challengeResponse string) error {
 func isDeviceMounted(devicePath string) (bool, error) {
 	file, err := os.Open("/proc/mounts")
 	if err != nil {
-		if os.IsNotExist(err) {
-			return false, nil // Bypass for non-Linux testing
-		}
-		return false, err
+		return false, fmt.Errorf("cannot determine mount state: %w", err)
 	}
 	defer file.Close()
 
