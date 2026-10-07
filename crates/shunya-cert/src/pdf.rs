@@ -1,6 +1,6 @@
 use crate::WipeManifest;
 use lopdf::dictionary;
-use lopdf::{Document, Object, Dictionary, StringFormat};
+use lopdf::{Document, Object, Dictionary};
 use qrcode::QrCode;
 use image::{Luma, ImageBuffer};
 
@@ -21,6 +21,17 @@ impl PdfGenerator {
             "BaseFont" => "Helvetica",
         });
 
+        let signature_hex = signature
+            .map(|s| s.iter().map(|b| format!("{:02x}", b)).collect::<String>())
+            .unwrap_or_else(|| "NOT SIGNED".to_string());
+
+        let public_key_short = if manifest.public_key.is_empty() {
+            "NOT SET".to_string()
+        } else {
+            // Show first 40 chars of PEM header + fingerprint hint
+            manifest.public_key.chars().take(40).collect()
+        };
+
         let content = format!(
             "BT\n\
             /F1 12 Tf\n\
@@ -36,12 +47,18 @@ impl PdfGenerator {
             (Method: {}) Tj\n\
             0 -20 Td\n\
             (Manifest Hash: {}) Tj\n\
+            0 -20 Td\n\
+            (Signature: {}) Tj\n\
+            0 -20 Td\n\
+            (Public Key: {}) Tj\n\
             ET",
             manifest.job_id,
             manifest.device_model,
             manifest.device_serial,
             manifest.wipe_method,
-            manifest.hash()
+            manifest.hash(),
+            signature_hex,
+            public_key_short
         );
 
         let content_id = doc.add_object(Object::Stream(lopdf::Stream::new(

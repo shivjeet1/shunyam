@@ -173,8 +173,9 @@ pub fn verify_certificate_on_drive(device: &str) -> Result<(String, bool), Strin
     let json_content = json_content_res.map_err(|e| format!("Could not read manifest.json: {}", e))?;
     let signature = sig_content_res.map_err(|e| format!("Could not read manifest.sig: {}", e))?;
 
-    // Verify logic (Mock fallback, or route to shunya-cert)
-    let is_valid = shunya_cert::signer::PIVSigner::verify_manifest_mock(&json_content, &signature);
+    // Verify the PIV signature using the public key stored in the manifest
+    let is_valid = shunya_cert::signer::PIVSigner::verify_manifest(&json_content, &signature)
+        .map_err(|e| format!("Signature verification error: {}", e))?;
 
     Ok((json_content, is_valid))
 }

@@ -45,7 +45,7 @@ fn main() {
 
     match args.command {
         Commands::GenerateCert { job_id, device_serial, device_model, capacity, operator, out_dir, target_device } => {
-            let manifest = shunya_cert::WipeManifest {
+            let mut manifest = shunya_cert::WipeManifest {
                 job_id: job_id.clone(),
                 device_serial,
                 device_model,
@@ -56,13 +56,16 @@ fn main() {
                 operator_id: operator,
                 carve_score: 0, // Mock passed
                 verification_hash: "mocked_verification_hash".to_string(),
+                public_key: String::new(), // Will be populated by sign_manifest
             };
 
-            let signature = match shunya_cert::signer::PIVSigner::sign_manifest(&manifest, None) {
+            // PIV-only signing — no mock fallback. Fails if no card is present.
+            let signature = match shunya_cert::signer::PIVSigner::sign_manifest(&mut manifest, None) {
                 Ok(sig) => sig,
                 Err(e) => {
-                    eprintln!("Signature warning: {}", e);
-                    vec![]
+                    eprintln!("Certificate generation failed: {}", e);
+                    eprintln!("A physical PIV SmartCard is required to sign certificates.");
+                    exit(1);
                 }
             };
 

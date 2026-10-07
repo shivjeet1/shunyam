@@ -19,6 +19,7 @@ pub struct WipeManifest {
     pub operator_id: String,
     pub carve_score: u32,
     pub verification_hash: String, // hash of the device post-wipe or random stream used
+    pub public_key: String,        // PEM-encoded public key from the PIV card
 }
 
 impl WipeManifest {
