@@ -72,7 +72,7 @@ func Execute(cfg WipeConfig, emit EmitFunc) error {
 	}
 
 	emit(cfg.JobID, "Verifying", "InProgress", "Verifying wipe...", 90.0)
-	if err := VerifyWipe(cfg.DevicePath, cfg.CapacityBytes, 50, emit, cfg.JobID); err != nil {
+	if err := VerifyWipe(cfg.DevicePath, cfg.CapacityBytes, cfg.Method, cfg.Transport, 50, emit, cfg.JobID); err != nil {
 		emit(cfg.JobID, "Verifying", "Failed", err.Error(), 0.0)
 		return err
 	}
