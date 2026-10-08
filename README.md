@@ -11,6 +11,7 @@ Shunya is an enterprise-grade secure wipe platform designed to cryptographically
 | `shunyad` | Go | Privileged background daemon — device probing, wiping via `nvme`/`hdparm`/`shred`, SQLite job tracking, Policy Gate, gRPC server on `127.0.0.1:9090` |
 | `shunya-engine` | Rust | Certificate engine — SmartCard PIV certificate signing, hardware-signed JSON/PDF manifest generation |
 | `shunya-gui` | Rust/Slint | Native cross-platform GUI — connects to `shunyad` over gRPC, real-time progress streaming, wipe-standard selection, compliance certificate export |
+| `shunya` | Go | CLI client — connects to `shunyad` over gRPC, device listing, future wipe/cert commands |
 | `iso/` | Shell/Alpine | Bootable Alpine Linux Live-USB builder for air-gapped bare-metal sanitization |
 
 ---
@@ -19,7 +20,7 @@ Shunya is an enterprise-grade secure wipe platform designed to cryptographically
 
 | Dependency | Minimum Version | Notes |
 |---|---|---|
-| Go | 1.20+ | For `shunyad` daemon |
+| Go | 1.20+ | For `shunyad` daemon and `shunya` CLI |
 | Rust + Cargo | stable (latest) | For `shunya-engine`, `shunya-gui` |
 | `pcsc-lite` dev headers | any | Linux/macOS — required for SmartCard/YubiKey PIV signing |
 | `libclang` / `clang` | any | Required by Rust bindgen for native IOCTLs |
@@ -47,7 +48,7 @@ brew install pcsc-lite
 make build
 
 # Or build components individually
-make build-go     # shunyad only
+make build-go     # shunyad + shunya CLI
 make build-rust   # shunya-engine + shunya-gui only
 ```
 
@@ -57,7 +58,7 @@ make build-rust   # shunya-engine + shunya-gui only
 make install
 ```
 
-This copies `shunyad`, `shunya-engine`, and `shunya-gui` to `~/.local/bin`.  
+This copies `shunyad`, `shunya`, `shunya-engine`, and `shunya-gui` to `~/.local/bin`.  
 Ensure the directory is in your `$PATH`:
 
 ```bash
@@ -85,7 +86,20 @@ sudo shunyad
 shunya-gui
 ```
 
-**Option C — Make helpers**
+**Option C — CLI**
+
+```bash
+# List devices
+shunya list
+
+# List devices with custom daemon address
+shunya list --address 127.0.0.1:9090
+
+# JSON output
+shunya list --json
+```
+
+**Option D — Make helpers**
 
 ```bash
 # Start daemon in foreground (Ctrl-C to stop)
@@ -110,19 +124,19 @@ make uninstall
 │  Setup       │────▶│  Ready           │────▶│  Active              │
 │  (Offline)   │     │  (Daemon Live)   │     │  (Main Application)  │
 └──────────────┘     └──────────────────┘     └──────────────────────┘
-                               │
-            ┌──────────────────┴──────────────────┐
-            ▼                                     ▼
-      Wipe/Sanitize                         File Recovery
-            │                                     │
-            ▼                                     ▼
-      Select Device                         Select Device
-      Authorize (Challenge)                 Select Recovery Profile
-      Execute Wipe                          Execute Scan
-            │                                     │
-            ├──── Wiping                          ├──── Scanning
-            ├──── Verifying                       └──── Done
-            └──── Done ── Generate Cert
+                                │
+             ┌──────────────────┴──────────────────┐
+             ▼                                     ▼
+       Wipe/Sanitize                         File Recovery
+             │                                     │
+             ▼                                     ▼
+       Select Device                         Select Device
+       Authorize (Challenge)                 Select Recovery Profile
+       Execute Wipe                          Execute Scan
+             │                                     │
+             ├──── Wiping                          ├──── Scanning
+             ├──── Verifying                       └──── Done
+             └──── Done ── Generate Cert
 ```
 
 ### Physical Presence Challenge
@@ -135,12 +149,12 @@ Before any destructive wipe is authorized, the daemon issues a one-time 4-byte h
 
 ```
 shunya-gui  ──gRPC──▶  shunyad (Go)  ──execs──▶ nvme-cli / hdparm / shred
-   (Slint)            127.0.0.1:9090                (Secure Wipe)
-                           │
-                           ├── SQLite DB (/tmp/shunya.db)
-                           │
-                           └──subprocess──▶ shunya-engine (Rust)
-                                               (Cert Generation)
+    (Slint)            127.0.0.1:9090                (Secure Wipe)
+                            │
+                            ├── SQLite DB (~/.local/share/shunya/shunya.db)
+                            │
+                            └──subprocess──▶ shunya-engine (Rust)
+                                                (Cert Generation)
 ```
 
 Key design principles:
@@ -148,6 +162,8 @@ Key design principles:
 - **Physical presence enforcement**: No wipe can be initiated without a human typing a random challenge.
 - **Zero clipboard leakage**: Challenge codes are generated in-memory and never written to disk.
 - **Cryptographic auditability**: Every wipe produces a hardware-signed JSON + PDF manifest.
+- **PIV-only signing**: Certificates are signed exclusively by a physical PIV SmartCard — no mock fallback.
+- **Real verification**: Post-wipe verification checks actual data patterns (zeros, 0x5A, 0xFF) and polls NVMe sanitize status.
 
 ### Directory Layout
 
@@ -158,18 +174,23 @@ shunyam/
 │   └── shunya/v1/shunya.proto
 ├── go/                       # Go workspace
 │   ├── cmd/shunyad/          # Daemon entrypoint + gRPC server
+│   ├── cmd/shunya/           # CLI client
 │   └── internal/
+│       ├── config/           # Configuration (JSON file + env overrides)
 │       ├── db/               # SQLite job store
 │       ├── job/              # State machine (Pending→Wiping→Verifying→Done)
 │       ├── policy/           # Physical presence gate
-│       ├── wipe/             # Wipe execution via nvme/hdparm/shred
+│       ├── wipe/             # Wipe execution + pattern verification
 │       └── tools/            # lsblk adapters & helper execution
 ├── crates/                   # Rust workspace
 │   ├── shunya-engine/        # CLI tool for certificate signing
 │   ├── shunya-gui/           # Slint native UI
-│   ├── shunya-carve/         # Deep file-carving validator
+│   ├── shunya-carve/         # File carver + validators + scorer
 │   ├── shunya-cert/          # SmartCard PIV certificate signer
 │   └── shunya-proto/         # Rust-side gRPC stubs (tonic)
+├── packaging/                # Distribution packaging
+│   ├── deb/                  # Debian package files
+│   └── arch/                 # Arch Linux PKGBUILD
 └── iso/                      # Alpine Linux ISO builder
     ├── build.sh
     ├── mkimg.shunya.sh
@@ -179,12 +200,60 @@ shunyam/
 
 ---
 
+## Configuration
+
+The daemon reads configuration from a JSON file and environment variables:
+
+| Setting | Environment Variable | Default | Description |
+|---|---|---|---|
+| gRPC address | `SHUNYA_ADDRESS` | `127.0.0.1:9090` | Daemon listen address |
+| Database path | `SHUNYA_DB_PATH` | `~/.local/share/shunya/shunya.db` | SQLite job store |
+| Engine path | `SHUNYA_ENGINE_PATH` | auto-detect | Path to `shunya-engine` binary |
+| Default method | `SHUNYA_DEFAULT_METHOD` | `Single Pass` | Default wipe method |
+| Verify samples | `SHUNYA_VERIFY_SAMPLES` | `50` | Sectors to sample during verification |
+| Challenge TTL | `SHUNYA_CHALLENGE_TTL` | `5` | Challenge expiry (minutes) |
+| Require presence | `SHUNYA_REQUIRE_PRESENCE` | `true` | Enforce physical presence challenge |
+| Log level | `SHUNYA_LOG_LEVEL` | `info` | debug, info, warn, error |
+
+---
+
+## Security Features
+
+- **PIV SmartCard signing**: Certificates are signed by a physical PIV token (YubiKey or similar). No mock fallback — a card is required.
+- **Signature bound to PDF**: The signature hex is embedded in the PDF content stream.
+- **Real signature verification**: RSA-2048 and ECDSA P-256 signatures verified using the public key stored in the manifest.
+- **Pattern-aware wipe verification**: Post-wipe verification checks actual sector content against expected patterns (zeros, 0x5A, 0xFF, random).
+- **NVMe sanitize polling**: After sanitize operations, the daemon polls `nvme sanitize-log` until completion is confirmed.
+- **Fail-secure mount check**: If mount state cannot be determined, the wipe is denied.
+- **One-time challenges**: Physical presence challenges are single-use and expire after 5 minutes.
+
+---
+
+## Testing
+
+### Go tests
+```bash
+cd go && go test -v ./...
+```
+
+### Rust tests
+```bash
+cd crates && cargo test --release
+```
+
+### CI
+GitHub Actions workflows run on every push and PR:
+- `.github/workflows/go.yml` — Go build, vet, test
+- `.github/workflows/rust.yml` — Rust build, test, clippy
+
+---
+
 ## Makefile Reference
 
 | Target | Description |
 |---|---|
 | `make build` | Build all components into `./build/` |
-| `make build-go` | Build `shunyad` only |
+| `make build-go` | Build `shunyad` + `shunya` CLI |
 | `make build-rust` | Build `shunya-engine` + `shunya-gui` only |
 | `make install` | Build + install to `~/.local/bin` |
 | `make uninstall` | Remove installed binaries |
@@ -198,4 +267,4 @@ Override the install prefix:
 make install PREFIX=/usr/local   # installs to /usr/local/bin
 ```
 
-
+---

@@ -1,0 +1,10 @@
+Package: shunya
+Version: 0.1.0
+Section: utils
+Priority: optional
+Architecture: amd64
+Depends: nvme-cli, hdparm, util-linux, sqlite3, libpcsclite1
+Maintainer: Shunya Team <noreply@shunya.local>
+Description: Shunya Secure Wipe Platform
+ Enterprise-grade secure disk wipe platform with NIST 800-88 compliance,
+ hardware-signed certificates, and physical presence enforcement.

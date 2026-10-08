@@ -1,0 +1,22 @@
+# Maintainer: Shunya Team
+pkgname=shunya
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="Enterprise-grade secure disk wipe platform with NIST 800-88 compliance"
+arch=('x86_64')
+url="https://github.com/shivjeet1/shunyam"
+license=('MIT')
+depends=('nvme-cli' 'hdparm' 'util-linux' 'sqlite' 'pcsclite' 'ccid')
+makedepends=('go' 'cargo' 'clang' 'pkgconf')
+source=()
+sha256sums=()
+
+build() {
+    cd "$srcdir/.."
+    make build
+}
+
+package() {
+    cd "$srcdir/.."
+    make install PREFIX="$pkgdir/usr"
+}

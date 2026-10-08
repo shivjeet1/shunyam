@@ -304,6 +304,7 @@ type StartJobRequest struct {
 	RequestedMethod   string                 `protobuf:"bytes,3,opt,name=requested_method,json=requestedMethod,proto3" json:"requested_method,omitempty"`
 	JobId             string                 `protobuf:"bytes,4,opt,name=job_id,json=jobId,proto3" json:"job_id,omitempty"`
 	CapacityBytes     uint64                 `protobuf:"varint,5,opt,name=capacity_bytes,json=capacityBytes,proto3" json:"capacity_bytes,omitempty"`
+	OperatorId        string                 `protobuf:"bytes,6,opt,name=operator_id,json=operatorId,proto3" json:"operator_id,omitempty"` // Operator identity for audit trail
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
 }
@@ -371,6 +372,13 @@ func (x *StartJobRequest) GetCapacityBytes() uint64 {
 		return x.CapacityBytes
 	}
 	return 0
+}
+
+func (x *StartJobRequest) GetOperatorId() string {
+	if x != nil {
+		return x.OperatorId
+	}
+	return ""
 }
 
 type StartJobResponse struct {
@@ -870,13 +878,14 @@ const file_shunya_v1_shunya_proto_rawDesc = "" +
 	"\x13GetChallengeRequest\x12\x1b\n" +
 	"\tdevice_id\x18\x01 \x01(\tR\bdeviceId\"A\n" +
 	"\x14GetChallengeResponse\x12)\n" +
-	"\x10challenge_string\x18\x01 \x01(\tR\x0fchallengeString\"\xc6\x01\n" +
+	"\x10challenge_string\x18\x01 \x01(\tR\x0fchallengeString\"\xe7\x01\n" +
 	"\x0fStartJobRequest\x12\x1b\n" +
 	"\tdevice_id\x18\x01 \x01(\tR\bdeviceId\x12-\n" +
 	"\x12challenge_response\x18\x02 \x01(\tR\x11challengeResponse\x12)\n" +
 	"\x10requested_method\x18\x03 \x01(\tR\x0frequestedMethod\x12\x15\n" +
 	"\x06job_id\x18\x04 \x01(\tR\x05jobId\x12%\n" +
-	"\x0ecapacity_bytes\x18\x05 \x01(\x04R\rcapacityBytes\")\n" +
+	"\x0ecapacity_bytes\x18\x05 \x01(\x04R\rcapacityBytes\x12\x1f\n" +
+	"\x0boperator_id\x18\x06 \x01(\tR\noperatorId\")\n" +
 	"\x10StartJobResponse\x12\x15\n" +
 	"\x06job_id\x18\x01 \x01(\tR\x05jobId\",\n" +
 	"\x13StreamEventsRequest\x12\x15\n" +

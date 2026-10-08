@@ -59,6 +59,7 @@ message StartJobRequest {
   string requested_method = 3;
   string job_id = 4;
   uint64 capacity_bytes = 5;
+  string operator_id = 6; // Operator identity for audit trail
 }
 
 message StartJobResponse {

@@ -121,6 +121,14 @@ func (s *DaemonServer) StartJob(ctx context.Context, req *pb.StartJobRequest) (*
 		return nil, status.Errorf(codes.Internal, "failed to create job: %v", err)
 	}
 
+	// Store operator identity for audit trail and certificate generation
+	deviceRegistry.Lock()
+	if meta, ok := deviceRegistry.m[req.DeviceId]; ok {
+		meta.Operator = req.OperatorId
+		deviceRegistry.m[req.DeviceId] = meta
+	}
+	deviceRegistry.Unlock()
+
 	req.JobId = jobID
 	go runWipeJob(jobID, req.RequestedMethod, s.machine, req)
 

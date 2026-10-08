@@ -253,6 +253,7 @@ fn main() -> Result<(), slint::PlatformError> {
                 device_id: dev_id.clone(),
                 challenge_response: response,
                 requested_method: method, job_id: "".to_string(), capacity_bytes: 0,
+                operator_id: "operator".to_string(),
             };
 
             let job_id = match client.start_job(req).await {
